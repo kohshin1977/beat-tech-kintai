@@ -146,7 +146,10 @@ const ClockTimePicker = ({
   }
 
   const handleConfirm = () => {
-    if (tempHour === null || tempMinute === null) return
+    if (tempHour === null || tempMinute === null) {
+      setShow(false)
+      return
+    }
     const nextValue = `${formatDisplay(tempHour)}:${formatDisplay(tempMinute)}`
     onChange(nextValue)
     setShow(false)
@@ -174,15 +177,16 @@ const ClockTimePicker = ({
             event.preventDefault()
             setShow(true)
           }
+          if (event.key === 'Backspace' && !disabled) {
+            event.preventDefault()
+            handleClear()
+          }
         }}
         disabled={disabled}
       />
-      <div className="d-flex gap-2">
-        <Button variant="outline-primary" onClick={() => setShow(true)} disabled={disabled} className="flex-grow-1">
-          時計で選ぶ
-        </Button>
+      <div className="d-flex justify-content-end">
         {value && !disabled && (
-          <Button variant="outline-secondary" onClick={handleClear}>
+          <Button variant="outline-secondary" size="sm" onClick={handleClear}>
             クリア
           </Button>
         )}
