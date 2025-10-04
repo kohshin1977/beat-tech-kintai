@@ -12,6 +12,7 @@ import {
   startOfWeek,
 } from 'date-fns'
 import ErrorAlert from '../../components/common/ErrorAlert.jsx'
+import ClockTimePicker from '../../components/common/ClockTimePicker.jsx'
 import useEmployeeAttendance from '../../hooks/useEmployeeAttendance.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 import {
@@ -297,16 +298,15 @@ const EmployeeDashboardPage = () => {
               <Form className="d-flex flex-column gap-3">
                 <Form.Group controlId="clockInTime">
                   <Form.Label className="mb-1">出勤入力</Form.Label>
-                  <div className="d-flex gap-2 flex-column flex-sm-row">
-                    <Form.Control
-                      type="time"
-                      value={clockInInput}
-                      onChange={(event) => setClockInInput(event.target.value)}
-                      className="flex-grow-1"
-                    />
+                  <ClockTimePicker
+                    value={clockInInput}
+                    onChange={setClockInInput}
+                    disabled={savingClockIn}
+                  />
+                  <div className="d-flex mt-2">
                     <Button
                       variant="outline-primary"
-                      className="w-100 w-sm-auto"
+                      className="w-100"
                       onClick={handleClockIn}
                       disabled={savingClockIn || !clockInInput}
                     >
@@ -317,17 +317,15 @@ const EmployeeDashboardPage = () => {
 
                 <Form.Group controlId="clockOutTime">
                   <Form.Label className="mb-1">退勤入力</Form.Label>
-                  <div className="d-flex gap-2 flex-column flex-sm-row">
-                    <Form.Control
-                      type="time"
-                      value={clockOutInput}
-                      onChange={(event) => setClockOutInput(event.target.value)}
-                      disabled={!hasClockIn}
-                      className="flex-grow-1"
-                    />
+                  <ClockTimePicker
+                    value={clockOutInput}
+                    onChange={setClockOutInput}
+                    disabled={!hasClockIn || savingClockOut}
+                  />
+                  <div className="d-flex mt-2">
                     <Button
                       variant="primary"
-                      className="w-100 w-sm-auto"
+                      className="w-100"
                       onClick={handleClockOut}
                       disabled={savingClockOut || !clockOutInput || !hasClockIn}
                     >
