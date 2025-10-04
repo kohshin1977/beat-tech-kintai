@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Card, Col, Form, Row, Stack } from 'react-bootstrap'
+import { format } from 'date-fns'
 import ErrorAlert from '../../components/common/ErrorAlert.jsx'
 import useEmployeeAttendance from '../../hooks/useEmployeeAttendance.js'
 import { useAuth } from '../../context/AuthContext.jsx'
@@ -9,34 +10,52 @@ import {
   formatWorkDate,
   updateAttendanceDetails,
 } from '../../services/attendanceService.js'
-import { formatTime, minutesToDuration } from '../../utils/time.js'
+import { formatTime, minutesToDuration, timestampToDate } from '../../utils/time.js'
 
 const EmployeeDashboardPage = () => {
   const { user } = useAuth()
   const { today, realtimeTotals } = useEmployeeAttendance(user?.uid)
   const workDate = useMemo(() => formatWorkDate(new Date()), [])
 
+  const [clockInInput, setClockInInput] = useState('')
+  const [clockOutInput, setClockOutInput] = useState('')
   const [breakMinutes, setBreakMinutes] = useState(60)
   const [workDescription, setWorkDescription] = useState('')
+  const [savingClockIn, setSavingClockIn] = useState(false)
+  const [savingClockOut, setSavingClockOut] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
   useEffect(() => {
-    if (!today) return
-    setBreakMinutes(today.breakMinutes ?? 60)
-    setWorkDescription(today.workDescription ?? '')
+    const toInputValue = (value) => {
+      const date = timestampToDate(value)
+      return date ? format(date, 'HH:mm') : ''
+    }
+
+    setClockInInput(toInputValue(today?.clockIn))
+    setClockOutInput(toInputValue(today?.clockOut))
+    setBreakMinutes(today?.breakMinutes ?? 60)
+    setWorkDescription(today?.workDescription ?? '')
   }, [today])
 
   const handleClockIn = async () => {
     if (!user?.uid) return
     setError('')
     setSuccess('')
+    if (!clockInInput) {
+      setError('出勤時刻を入力してください。')
+      return
+    }
+
+    setSavingClockIn(true)
     try {
-      await clockIn(user.uid, workDate)
-      setSuccess('出勤打刻を登録しました。')
+      await clockIn(user.uid, workDate, clockInInput)
+      setSuccess('出勤時刻を保存しました。')
     } catch (e) {
       setError(e.message)
+    } finally {
+      setSavingClockIn(false)
     }
   }
 
@@ -44,11 +63,19 @@ const EmployeeDashboardPage = () => {
     if (!user?.uid) return
     setError('')
     setSuccess('')
+    if (!clockOutInput) {
+      setError('退勤時刻を入力してください。')
+      return
+    }
+
+    setSavingClockOut(true)
     try {
-      await clockOut(user.uid, workDate)
-      setSuccess('退勤打刻を登録しました。')
+      await clockOut(user.uid, workDate, clockOutInput)
+      setSuccess('退勤時刻を保存しました。')
     } catch (e) {
       setError(e.message)
+    } finally {
+      setSavingClockOut(false)
     }
   }
 
@@ -71,7 +98,6 @@ const EmployeeDashboardPage = () => {
   }
 
   const hasClockIn = Boolean(today?.clockIn)
-  const hasClockOut = Boolean(today?.clockOut)
 
   const workMinutesLabel = today?.totalMinutes ? minutesToDuration(today.totalMinutes) : '-'
   const overtimeLabel = today?.overtimeMinutes ? minutesToDuration(today.overtimeMinutes) : '-'
@@ -128,26 +154,46 @@ const EmployeeDashboardPage = () => {
               </Stack>
             </Col>
             <Col xs={12} md={6}>
-              <div className="d-flex gap-2 justify-content-md-end">
-                <Button
-                  variant="outline-primary"
-                  size="lg"
-                  className="flex-fill flex-md-grow-0"
-                  onClick={handleClockIn}
-                  disabled={hasClockIn}
-                >
-                  出勤打刻
-                </Button>
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="flex-fill flex-md-grow-0"
-                  onClick={handleClockOut}
-                  disabled={!hasClockIn || hasClockOut}
-                >
-                  退勤打刻
-                </Button>
-              </div>
+              <Form className="d-flex flex-column gap-3">
+                <Form.Group controlId="clockInTime">
+                  <Form.Label className="mb-1">出勤入力</Form.Label>
+                  <div className="d-flex gap-2">
+                    <Form.Control
+                      type="time"
+                      value={clockInInput}
+                      onChange={(event) => setClockInInput(event.target.value)}
+                    />
+                    <Button
+                      variant="outline-primary"
+                      className="flex-shrink-0"
+                      onClick={handleClockIn}
+                      disabled={savingClockIn || !clockInInput}
+                    >
+                      {savingClockIn ? '保存中…' : '保存'}
+                    </Button>
+                  </div>
+                </Form.Group>
+
+                <Form.Group controlId="clockOutTime">
+                  <Form.Label className="mb-1">退勤入力</Form.Label>
+                  <div className="d-flex gap-2">
+                    <Form.Control
+                      type="time"
+                      value={clockOutInput}
+                      onChange={(event) => setClockOutInput(event.target.value)}
+                      disabled={!hasClockIn}
+                    />
+                    <Button
+                      variant="primary"
+                      className="flex-shrink-0"
+                      onClick={handleClockOut}
+                      disabled={savingClockOut || !clockOutInput || !hasClockIn}
+                    >
+                      {savingClockOut ? '保存中…' : '保存'}
+                    </Button>
+                  </div>
+                </Form.Group>
+              </Form>
             </Col>
           </Row>
         </Card.Body>

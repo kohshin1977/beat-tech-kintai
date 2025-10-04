@@ -28,62 +28,106 @@ const getAttendanceDocRef = (userId, workDate) =>
 const getMonthlySummaryDocRef = (userId, yearMonth) =>
   doc(db, 'users', userId, 'monthlySummary', yearMonth)
 
-export const clockIn = async (userId, workDate) => {
+const buildTimestampFromWorkDate = (workDate, timeString, label) => {
+  if (!timeString) {
+    throw new Error(`${label}を入力してください。`)
+  }
+
+  const match = /^([0-1]\d|2[0-3]):([0-5]\d)$/.exec(timeString)
+  if (!match) {
+    throw new Error(`${label}の形式が正しくありません (HH:MM)。`)
+  }
+
+  const [year, month, day] = workDate.split('-').map(Number)
+  if ([year, month, day].some((value) => Number.isNaN(value))) {
+    throw new Error('勤怠日付の形式が正しくありません。')
+  }
+
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  const date = new Date(year, month - 1, day, hours, minutes, 0, 0)
+  return Timestamp.fromDate(date)
+}
+
+export const clockIn = async (userId, workDate, clockInTime) => {
+  const attendanceRef = getAttendanceDocRef(userId, workDate)
+  const attendanceSnap = await getDoc(attendanceRef)
+  const existingData = attendanceSnap.exists() ? attendanceSnap.data() : null
+
+  const clockInTimestamp = buildTimestampFromWorkDate(workDate, clockInTime, '出勤時刻')
+  const breakMinutes = existingData?.breakMinutes ?? 0
+  const workDescription = existingData?.workDescription ?? ''
+  const clockOutTimestamp = existingData?.clockOut ?? null
+
+  const payload = {
+    userId,
+    workDate,
+    clockIn: clockInTimestamp,
+    breakMinutes,
+    workDescription,
+    status: clockOutTimestamp ? 'completed' : 'working',
+    updatedAt: serverTimestamp(),
+  }
+
+  if (!existingData) {
+    payload.createdAt = serverTimestamp()
+  }
+
+  if (clockOutTimestamp) {
+    const totalMinutes = calculateDailyMinutes(clockInTimestamp, clockOutTimestamp, breakMinutes)
+    payload.totalMinutes = totalMinutes
+    payload.overtimeMinutes = calculateOvertimeMinutes(totalMinutes, STANDARD_DAILY_MINUTES)
+  } else {
+    payload.totalMinutes = null
+    payload.overtimeMinutes = null
+  }
+
+  await setDoc(attendanceRef, payload, { merge: true })
+
+  if (clockOutTimestamp) {
+    await updateMonthlySummaryTotals(userId, workDate.slice(0, 7))
+  }
+}
+
+export const clockOut = async (userId, workDate, clockOutTime) => {
   const attendanceRef = getAttendanceDocRef(userId, workDate)
   const attendanceSnap = await getDoc(attendanceRef)
 
-  if (attendanceSnap.exists() && attendanceSnap.data().clockIn) {
-    throw new Error('すでに出勤打刻が登録されています。')
+  if (!attendanceSnap.exists()) {
+    throw new Error('先に出勤時刻を登録してください。')
   }
 
-  const now = Timestamp.fromDate(new Date())
+  const data = attendanceSnap.data()
+
+  if (!data.clockIn) {
+    throw new Error('出勤時刻が登録されていません。')
+  }
+
+  const clockOutTimestamp = buildTimestampFromWorkDate(workDate, clockOutTime, '退勤時刻')
+  const breakMinutes = data.breakMinutes ?? 0
+  const totalMinutes = calculateDailyMinutes(data.clockIn, clockOutTimestamp, breakMinutes)
+
+  if (totalMinutes < 0) {
+    throw new Error('退勤時刻は出勤時刻より後の時間を入力してください。')
+  }
+
+  const overtimeMinutes = calculateOvertimeMinutes(totalMinutes, STANDARD_DAILY_MINUTES)
 
   await setDoc(
     attendanceRef,
     {
       userId,
       workDate,
-      clockIn: now,
-      breakMinutes: 0,
-      workDescription: '',
-      status: 'working',
-      createdAt: serverTimestamp(),
+      clockOut: clockOutTimestamp,
+      breakMinutes,
+      workDescription: data.workDescription ?? '',
+      totalMinutes,
+      overtimeMinutes,
+      status: 'completed',
       updatedAt: serverTimestamp(),
     },
     { merge: true },
   )
-}
-
-export const clockOut = async (userId, workDate) => {
-  const attendanceRef = getAttendanceDocRef(userId, workDate)
-  const attendanceSnap = await getDoc(attendanceRef)
-
-  if (!attendanceSnap.exists()) {
-    throw new Error('先に出勤打刻を行ってください。')
-  }
-
-  const data = attendanceSnap.data()
-
-  if (!data.clockIn) {
-    throw new Error('出勤打刻が確認できません。')
-  }
-
-  if (data.clockOut) {
-    throw new Error('すでに退勤打刻が登録されています。')
-  }
-
-  const now = Timestamp.fromDate(new Date())
-
-  const totalMinutes = calculateDailyMinutes(data.clockIn, now, data.breakMinutes)
-  const overtimeMinutes = calculateOvertimeMinutes(totalMinutes, STANDARD_DAILY_MINUTES)
-
-  await updateDoc(attendanceRef, {
-    clockOut: now,
-    totalMinutes,
-    overtimeMinutes,
-    status: 'completed',
-    updatedAt: serverTimestamp(),
-  })
 
   await updateMonthlySummaryTotals(userId, workDate.slice(0, 7))
 }
