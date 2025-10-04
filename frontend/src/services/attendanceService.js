@@ -2,6 +2,8 @@ import {
   Timestamp,
   collection,
   collectionGroup,
+  deleteDoc,
+  deleteField,
   doc,
   endAt,
   getDoc,
@@ -128,6 +130,44 @@ export const clockOut = async (userId, workDate, clockOutTime) => {
     },
     { merge: true },
   )
+
+  await updateMonthlySummaryTotals(userId, workDate.slice(0, 7))
+}
+
+export const clearClockIn = async (userId, workDate) => {
+  const attendanceRef = getAttendanceDocRef(userId, workDate)
+  const attendanceSnap = await getDoc(attendanceRef)
+
+  if (!attendanceSnap.exists()) {
+    return
+  }
+
+  await deleteDoc(attendanceRef)
+  await updateMonthlySummaryTotals(userId, workDate.slice(0, 7))
+}
+
+export const clearClockOut = async (userId, workDate) => {
+  const attendanceRef = getAttendanceDocRef(userId, workDate)
+  const attendanceSnap = await getDoc(attendanceRef)
+
+  if (!attendanceSnap.exists()) {
+    return
+  }
+
+  const data = attendanceSnap.data()
+
+  if (!data.clockIn) {
+    await deleteDoc(attendanceRef)
+    return
+  }
+
+  await updateDoc(attendanceRef, {
+    clockOut: deleteField(),
+    totalMinutes: deleteField(),
+    overtimeMinutes: deleteField(),
+    status: 'working',
+    updatedAt: serverTimestamp(),
+  })
 
   await updateMonthlySummaryTotals(userId, workDate.slice(0, 7))
 }

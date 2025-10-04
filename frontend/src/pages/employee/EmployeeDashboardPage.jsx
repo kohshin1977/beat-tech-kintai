@@ -18,6 +18,8 @@ import { useAuth } from '../../context/AuthContext.jsx'
 import {
   clockIn,
   clockOut,
+  clearClockIn,
+  clearClockOut,
   updateAttendanceDetails,
 } from '../../services/attendanceService.js'
 import { formatTime, minutesToDuration, timestampToDate } from '../../utils/time.js'
@@ -61,19 +63,30 @@ const EmployeeDashboardPage = () => {
     setWorkDescription(attendanceRecord?.workDescription ?? '')
   }, [attendanceRecord])
 
-  const handleClockIn = async () => {
+  const getExistingTime = (timestampValue) => {
+    const date = timestampToDate(timestampValue)
+    return date ? format(date, 'HH:mm') : ''
+  }
+
+  const handleClockInChange = async (nextValue) => {
+    setClockInInput(nextValue ?? '')
+
     if (!user?.uid) return
+
+    const existing = getExistingTime(attendanceRecord?.clockIn)
+    if ((nextValue ?? '') === existing) return
+
     setError('')
     setSuccess('')
-    if (!clockInInput) {
-      setError('出勤時刻を入力してください。')
-      return
-    }
-
     setSavingClockIn(true)
     try {
-      await clockIn(user.uid, workDate, clockInInput)
-      setSuccess(`出勤時刻を保存しました (${format(selectedDate, 'M月d日')})。`)
+      if (!nextValue) {
+        await clearClockIn(user.uid, workDate)
+        setSuccess(`出勤時刻を削除しました (${format(selectedDate, 'M月d日')})。`)
+      } else {
+        await clockIn(user.uid, workDate, nextValue)
+        setSuccess(`出勤時刻を保存しました (${format(selectedDate, 'M月d日')})。`)
+      }
     } catch (e) {
       setError(e.message)
     } finally {
@@ -81,19 +94,25 @@ const EmployeeDashboardPage = () => {
     }
   }
 
-  const handleClockOut = async () => {
+  const handleClockOutChange = async (nextValue) => {
+    setClockOutInput(nextValue ?? '')
+
     if (!user?.uid) return
+
+    const existing = getExistingTime(attendanceRecord?.clockOut)
+    if ((nextValue ?? '') === existing) return
+
     setError('')
     setSuccess('')
-    if (!clockOutInput) {
-      setError('退勤時刻を入力してください。')
-      return
-    }
-
     setSavingClockOut(true)
     try {
-      await clockOut(user.uid, workDate, clockOutInput)
-      setSuccess(`退勤時刻を保存しました (${format(selectedDate, 'M月d日')})。`)
+      if (!nextValue) {
+        await clearClockOut(user.uid, workDate)
+        setSuccess(`退勤時刻を削除しました (${format(selectedDate, 'M月d日')})。`)
+      } else {
+        await clockOut(user.uid, workDate, nextValue)
+        setSuccess(`退勤時刻を保存しました (${format(selectedDate, 'M月d日')})。`)
+      }
     } catch (e) {
       setError(e.message)
     } finally {
@@ -300,38 +319,18 @@ const EmployeeDashboardPage = () => {
                   <Form.Label className="mb-1">出勤入力</Form.Label>
                   <ClockTimePicker
                     value={clockInInput}
-                    onChange={setClockInInput}
+                    onChange={handleClockInChange}
                     disabled={savingClockIn}
                   />
-                  <div className="d-flex mt-2">
-                    <Button
-                      variant="outline-primary"
-                      className="w-100"
-                      onClick={handleClockIn}
-                      disabled={savingClockIn || !clockInInput}
-                    >
-                      {savingClockIn ? '保存中…' : '保存'}
-                    </Button>
-                  </div>
                 </Form.Group>
 
                 <Form.Group controlId="clockOutTime">
                   <Form.Label className="mb-1">退勤入力</Form.Label>
                   <ClockTimePicker
                     value={clockOutInput}
-                    onChange={setClockOutInput}
+                    onChange={handleClockOutChange}
                     disabled={!hasClockIn || savingClockOut}
                   />
-                  <div className="d-flex mt-2">
-                    <Button
-                      variant="primary"
-                      className="w-100"
-                      onClick={handleClockOut}
-                      disabled={savingClockOut || !clockOutInput || !hasClockIn}
-                    >
-                      {savingClockOut ? '保存中…' : '保存'}
-                    </Button>
-                  </div>
                 </Form.Group>
               </Form>
             </Col>

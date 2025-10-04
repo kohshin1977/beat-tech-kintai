@@ -105,3 +105,9 @@ users/{userId}/monthlySummary/{yearMonth}
 エクスポート処理：SheetJS (xlsxライブラリ)
 
 インフラ：サーバーレス（Firebase利用）
+------------------
+
+ToDo
+管理アカウントの確認
+
+

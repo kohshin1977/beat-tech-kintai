@@ -113,6 +113,7 @@ const ClockTimePicker = ({
   disabled = false,
   minuteStep = 5,
   label,
+  autoClose = true,
 }) => {
   const [show, setShow] = useState(false)
   const [mode, setMode] = useState('hour')
@@ -136,22 +137,31 @@ const ClockTimePicker = ({
     return `${formatDisplay(hour)}:${formatDisplay(minute)}`
   }, [value])
 
+  const finalize = (hour, minute) => {
+    if (hour === null || minute === null) return
+    const nextValue = `${formatDisplay(hour)}:${formatDisplay(minute)}`
+    onChange(nextValue)
+    if (autoClose) {
+      setShow(false)
+    }
+  }
+
   const handleHourSelect = (hour) => {
     setTempHour(hour)
-    setMode('minute')
+    if (minuteStep === 60) {
+      finalize(hour, 0)
+    } else {
+      setMode('minute')
+    }
   }
 
   const handleMinuteSelect = (minute) => {
     setTempMinute(minute)
+    finalize(tempHour ?? currentHour ?? 0, minute)
   }
 
   const handleConfirm = () => {
-    if (tempHour === null || tempMinute === null) {
-      setShow(false)
-      return
-    }
-    const nextValue = `${formatDisplay(tempHour)}:${formatDisplay(tempMinute)}`
-    onChange(nextValue)
+    finalize(tempHour ?? currentHour ?? 0, tempMinute ?? currentMinute ?? minuteValues[0])
     setShow(false)
   }
 
@@ -184,13 +194,13 @@ const ClockTimePicker = ({
         }}
         disabled={disabled}
       />
-      <div className="d-flex justify-content-end">
-        {value && !disabled && (
+      {value && !disabled && (
+        <div className="d-flex justify-content-end">
           <Button variant="outline-secondary" size="sm" onClick={handleClear}>
             クリア
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       <Modal show={show} onHide={() => setShow(false)} centered>
         <Modal.Header closeButton>
@@ -219,19 +229,18 @@ const ClockTimePicker = ({
             />
           )}
 
-          <div className="d-flex justify-content-between gap-2 mt-4">
-            <Button variant="outline-secondary" onClick={() => setMode('hour')} disabled={mode === 'hour'}>
-              時刻を選び直す
-            </Button>
-            <div className="d-flex gap-2">
+          {value && (
+            <div className="d-flex justify-content-end gap-2 mt-4">
               <Button variant="outline-secondary" onClick={handleClear}>
                 クリア
               </Button>
-              <Button variant="primary" onClick={handleConfirm} disabled={tempHour === null || tempMinute === null}>
-                決定
-              </Button>
+              {!autoClose && (
+                <Button variant="primary" onClick={handleConfirm}>
+                  決定
+                </Button>
+              )}
             </div>
-          </div>
+          )}
         </Modal.Body>
       </Modal>
     </div>
@@ -244,6 +253,7 @@ ClockTimePicker.propTypes = {
   disabled: PropTypes.bool,
   minuteStep: PropTypes.oneOf([5, 10, 15, 30]),
   label: PropTypes.string,
+  autoClose: PropTypes.bool,
 }
 
 export default ClockTimePicker
