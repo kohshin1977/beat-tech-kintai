@@ -1,21 +1,42 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Badge, Button, Card, Col, Form, Row, Stack } from 'react-bootstrap'
-import { format } from 'date-fns'
+import { Badge, Button, Card, Col, Form, Row, Stack, Table } from 'react-bootstrap'
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isSameMonth,
+  startOfMonth,
+  startOfWeek,
+} from 'date-fns'
 import ErrorAlert from '../../components/common/ErrorAlert.jsx'
 import useEmployeeAttendance from '../../hooks/useEmployeeAttendance.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 import {
   clockIn,
   clockOut,
-  formatWorkDate,
   updateAttendanceDetails,
 } from '../../services/attendanceService.js'
 import { formatTime, minutesToDuration, timestampToDate } from '../../utils/time.js'
 
 const EmployeeDashboardPage = () => {
   const { user } = useAuth()
-  const { today, realtimeTotals } = useEmployeeAttendance(user?.uid)
-  const workDate = useMemo(() => formatWorkDate(new Date()), [])
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()))
+  const [selectedDate, setSelectedDate] = useState(() => new Date())
+  const {
+    today: attendanceRecord,
+    realtimeTotals,
+    monthlyRecords,
+    loading,
+    error: fetchError,
+    workDate,
+    isViewingToday,
+  } = useEmployeeAttendance(user?.uid, {
+    monthDate: calendarMonth,
+    selectedDate,
+  })
 
   const [clockInInput, setClockInInput] = useState('')
   const [clockOutInput, setClockOutInput] = useState('')
@@ -33,11 +54,11 @@ const EmployeeDashboardPage = () => {
       return date ? format(date, 'HH:mm') : ''
     }
 
-    setClockInInput(toInputValue(today?.clockIn))
-    setClockOutInput(toInputValue(today?.clockOut))
-    setBreakMinutes(today?.breakMinutes ?? 60)
-    setWorkDescription(today?.workDescription ?? '')
-  }, [today])
+    setClockInInput(toInputValue(attendanceRecord?.clockIn))
+    setClockOutInput(toInputValue(attendanceRecord?.clockOut))
+    setBreakMinutes(attendanceRecord?.breakMinutes ?? 60)
+    setWorkDescription(attendanceRecord?.workDescription ?? '')
+  }, [attendanceRecord])
 
   const handleClockIn = async () => {
     if (!user?.uid) return
@@ -51,7 +72,7 @@ const EmployeeDashboardPage = () => {
     setSavingClockIn(true)
     try {
       await clockIn(user.uid, workDate, clockInInput)
-      setSuccess('出勤時刻を保存しました。')
+      setSuccess(`出勤時刻を保存しました (${format(selectedDate, 'M月d日')})。`)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -71,7 +92,7 @@ const EmployeeDashboardPage = () => {
     setSavingClockOut(true)
     try {
       await clockOut(user.uid, workDate, clockOutInput)
-      setSuccess('退勤時刻を保存しました。')
+      setSuccess(`退勤時刻を保存しました (${format(selectedDate, 'M月d日')})。`)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -80,7 +101,7 @@ const EmployeeDashboardPage = () => {
   }
 
   const handleSaveDetails = async () => {
-    if (!user?.uid || !today) return
+    if (!user?.uid || !attendanceRecord) return
     setError('')
     setSuccess('')
     setSaving(true)
@@ -89,7 +110,7 @@ const EmployeeDashboardPage = () => {
         breakMinutes: Number(breakMinutes),
         workDescription,
       })
-      setSuccess('休憩時間・勤務内容を保存しました。')
+      setSuccess(`休憩時間・勤務内容を保存しました (${format(selectedDate, 'M月d日')})。`)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -97,10 +118,14 @@ const EmployeeDashboardPage = () => {
     }
   }
 
-  const hasClockIn = Boolean(today?.clockIn)
+  const hasClockIn = Boolean(attendanceRecord?.clockIn)
 
-  const workMinutesLabel = today?.totalMinutes ? minutesToDuration(today.totalMinutes) : '-'
-  const overtimeLabel = today?.overtimeMinutes ? minutesToDuration(today.overtimeMinutes) : '-'
+  const workMinutesLabel = attendanceRecord?.totalMinutes
+    ? minutesToDuration(attendanceRecord.totalMinutes)
+    : '-'
+  const overtimeLabel = attendanceRecord?.overtimeMinutes
+    ? minutesToDuration(attendanceRecord.overtimeMinutes)
+    : '-'
 
   const realtimeWork = realtimeTotals
     ? {
@@ -109,11 +134,48 @@ const EmployeeDashboardPage = () => {
       }
     : null
 
+  const recordsByDate = useMemo(() => {
+    const map = {}
+    monthlyRecords.forEach((record) => {
+      if (record?.workDate) {
+        map[record.workDate] = record
+      }
+    })
+    return map
+  }, [monthlyRecords])
+
+  const calendarWeeks = useMemo(() => {
+    const start = startOfWeek(startOfMonth(calendarMonth), { weekStartsOn: 0 })
+    const end = endOfWeek(endOfMonth(calendarMonth), { weekStartsOn: 0 })
+    const days = eachDayOfInterval({ start, end })
+    const weeks = []
+    for (let index = 0; index < days.length; index += 7) {
+      weeks.push(days.slice(index, index + 7))
+    }
+    return weeks
+  }, [calendarMonth])
+
+  const selectedDateLabel = format(selectedDate, 'M月d日 (E)')
+  const calendarMonthLabel = format(calendarMonth, 'yyyy年M月')
+
+  const handleSelectDate = (day) => {
+    setSelectedDate(day)
+    if (!isSameMonth(day, calendarMonth)) {
+      setCalendarMonth(startOfMonth(day))
+    }
+  }
+
+  const handleMonthChange = (offset) => {
+    const next = startOfMonth(addMonths(calendarMonth, offset))
+    setCalendarMonth(next)
+    setSelectedDate(next)
+  }
+
   return (
     <Stack gap={3}>
       <div>
         <h2 className="h5 fw-bold mb-1">今日の勤怠状況</h2>
-        <p className="text-muted small mb-0">出勤・退勤はワンタップで登録できます。</p>
+        <p className="text-muted small mb-0">カレンダーから日付を選び、出勤・退勤時刻を入力できます。</p>
       </div>
 
       <ErrorAlert message={error} onClose={() => setError('')} />
@@ -122,25 +184,103 @@ const EmployeeDashboardPage = () => {
           {success}
         </div>
       )}
+      {fetchError && !error && (
+        <div className="alert alert-danger py-2 mb-0" role="alert">
+          {fetchError}
+        </div>
+      )}
 
       <Card className="shadow-sm">
         <Card.Body>
+          <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
+            <div className="d-flex justify-content-between align-items-center gap-2">
+              <Button variant="outline-secondary" size="sm" onClick={() => handleMonthChange(-1)}>
+                前の月
+              </Button>
+              <h3 className="h6 mb-0">{calendarMonthLabel}</h3>
+              <Button variant="outline-secondary" size="sm" onClick={() => handleMonthChange(1)}>
+                次の月
+              </Button>
+            </div>
+            <div className="text-muted small">選択中: {selectedDateLabel}</div>
+          </div>
+
+          <Table bordered responsive hover className="mb-0 text-center align-middle">
+            <thead className="table-light">
+              <tr>
+                {['日', '月', '火', '水', '木', '金', '土'].map((label) => (
+                  <th key={label}>{label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {calendarWeeks.map((week, rowIndex) => (
+                <tr key={rowIndex}>
+                  {week.map((day) => {
+                    const key = format(day, 'yyyy-MM-dd')
+                    const record = recordsByDate[key]
+                    const isCurrentMonth = isSameMonth(day, calendarMonth)
+                    const isSelected = isSameDay(day, selectedDate)
+
+                    const cellClasses = [
+                      isCurrentMonth ? '' : 'bg-light text-muted',
+                      isSelected ? 'table-primary text-white fw-semibold' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')
+
+                    return (
+                      <td
+                        key={day.toISOString()}
+                        className={cellClasses}
+                        role="button"
+                        onClick={() => handleSelectDate(day)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <div>{format(day, 'd')}</div>
+                        <div className="small">
+                          {record ? (
+                            <>
+                              <div>{formatTime(record.clockIn)}</div>
+                              <div>{formatTime(record.clockOut)}</div>
+                            </>
+                          ) : (
+                            <span className="text-muted">-</span>
+                          )}
+                        </div>
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </Card.Body>
+      </Card>
+
+      <Card className="shadow-sm">
+        <Card.Body>
+          {loading && (
+            <div className="alert alert-info py-2 mb-3" role="status">
+              データを読み込んでいます…
+            </div>
+          )}
           <Row className="g-3 align-items-center">
             <Col xs={12} md={6}>
               <Stack direction="horizontal" gap={3} className="flex-wrap">
                 <div>
                   <p className="text-muted small mb-1">出勤</p>
-                  <h3 className="h4 mb-0">{formatTime(today?.clockIn)}</h3>
+                  <h3 className="h4 mb-0">{formatTime(attendanceRecord?.clockIn)}</h3>
                 </div>
                 <div>
                   <p className="text-muted small mb-1">退勤</p>
-                  <h3 className="h4 mb-0">{formatTime(today?.clockOut)}</h3>
+                  <h3 className="h4 mb-0">{formatTime(attendanceRecord?.clockOut)}</h3>
                 </div>
                 <div>
                   <p className="text-muted small mb-1">勤務時間</p>
                   <h3 className="h4 mb-0">
                     {realtimeWork?.total ?? workMinutesLabel}
-                    {today?.status === 'working' && !realtimeWork && (
+                    {attendanceRecord?.status === 'working' && isViewingToday && !realtimeWork && (
                       <Badge bg="info" className="ms-2">
                         集計中
                       </Badge>
@@ -157,15 +297,16 @@ const EmployeeDashboardPage = () => {
               <Form className="d-flex flex-column gap-3">
                 <Form.Group controlId="clockInTime">
                   <Form.Label className="mb-1">出勤入力</Form.Label>
-                  <div className="d-flex gap-2">
+                  <div className="d-flex gap-2 flex-column flex-sm-row">
                     <Form.Control
                       type="time"
                       value={clockInInput}
                       onChange={(event) => setClockInInput(event.target.value)}
+                      className="flex-grow-1"
                     />
                     <Button
                       variant="outline-primary"
-                      className="flex-shrink-0"
+                      className="w-100 w-sm-auto"
                       onClick={handleClockIn}
                       disabled={savingClockIn || !clockInInput}
                     >
@@ -176,16 +317,17 @@ const EmployeeDashboardPage = () => {
 
                 <Form.Group controlId="clockOutTime">
                   <Form.Label className="mb-1">退勤入力</Form.Label>
-                  <div className="d-flex gap-2">
+                  <div className="d-flex gap-2 flex-column flex-sm-row">
                     <Form.Control
                       type="time"
                       value={clockOutInput}
                       onChange={(event) => setClockOutInput(event.target.value)}
                       disabled={!hasClockIn}
+                      className="flex-grow-1"
                     />
                     <Button
                       variant="primary"
-                      className="flex-shrink-0"
+                      className="w-100 w-sm-auto"
                       onClick={handleClockOut}
                       disabled={savingClockOut || !clockOutInput || !hasClockIn}
                     >

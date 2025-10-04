@@ -10,7 +10,7 @@ import {
   listenToTodayAttendance,
 } from '../services/attendanceService.js'
 
-const useEmployeeAttendance = (userId, monthDateInput) => {
+const useEmployeeAttendance = (userId, { monthDate: monthDateInput, selectedDate: selectedDateInput } = {}) => {
   const [today, setToday] = useState(null)
   const [monthlyRecords, setMonthlyRecords] = useState([])
   const [monthlySummary, setMonthlySummary] = useState(null)
@@ -24,13 +24,25 @@ const useEmployeeAttendance = (userId, monthDateInput) => {
     return new Date()
   }, [monthDateInput])
 
+  const selectedDate = useMemo(() => {
+    if (selectedDateInput instanceof Date && !Number.isNaN(selectedDateInput.getTime())) {
+      return selectedDateInput
+    }
+    return new Date()
+  }, [selectedDateInput])
+
+  const workDate = useMemo(() => formatWorkDate(selectedDate), [selectedDate])
+  const isViewingToday = useMemo(
+    () => workDate === formatWorkDate(new Date()),
+    [workDate],
+  )
+
   useEffect(() => {
     if (!userId) return undefined
 
     setLoading(true)
     setError(null)
 
-    const workDate = formatWorkDate(new Date())
     const yearMonth = format(monthDate, 'yyyy-MM')
 
     const unsubscribeToday = listenToTodayAttendance(userId, workDate, (data) => {
@@ -51,12 +63,12 @@ const useEmployeeAttendance = (userId, monthDateInput) => {
       unsubscribeMonthly?.()
       unsubscribeSummary?.()
     }
-  }, [userId, monthDate])
+  }, [userId, monthDate, workDate])
 
   const realtimeTotals = useMemo(() => {
-    if (!today?.clockIn || today?.clockOut) return null
+    if (!isViewingToday || !today?.clockIn || today?.clockOut) return null
     return calculateRealtimeTotals(today.clockIn, today.breakMinutes)
-  }, [today])
+  }, [today, isViewingToday])
 
   const nextMonthLabel = useMemo(() => format(addMonths(monthDate, 1), 'yyyy-MM'), [monthDate])
 
@@ -68,6 +80,9 @@ const useEmployeeAttendance = (userId, monthDateInput) => {
     loading,
     error,
     nextMonthLabel,
+    selectedDate,
+    isViewingToday,
+    workDate,
   }
 }
 

@@ -26,7 +26,7 @@ const EmployeeHistoryPage = () => {
   const [viewMode, setViewMode] = useState(VIEW_MODES.LIST)
 
   const monthDate = useMemo(() => parseISO(`${selectedMonth}-01`), [selectedMonth])
-  const { monthlyRecords } = useEmployeeAttendance(user?.uid, monthDate)
+  const { monthlyRecords } = useEmployeeAttendance(user?.uid, { monthDate })
 
   const sortedRecords = useMemo(
     () =>

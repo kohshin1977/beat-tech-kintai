@@ -11,7 +11,7 @@ const EmployeeMonthlySummaryPage = () => {
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'))
 
   const monthDate = useMemo(() => parseISO(`${selectedMonth}-01`), [selectedMonth])
-  const { monthlyRecords, monthlySummary } = useEmployeeAttendance(user?.uid, monthDate)
+  const { monthlyRecords, monthlySummary } = useEmployeeAttendance(user?.uid, { monthDate })
 
   const handleMonthChange = (event) => {
     setSelectedMonth(event.target.value)
