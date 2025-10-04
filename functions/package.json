@@ -1,0 +1,19 @@
+{
+  "name": "beat-teck-kintai-functions",
+  "private": true,
+  "engines": {
+    "node": "18"
+  },
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint .",
+    "build": "echo 'Cloud Functions use on-the-fly transpilation.'",
+    "deploy": "firebase deploy --only functions"
+  },
+  "dependencies": {
+    "date-fns": "^3.6.0",
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^5.1.0"
+  }
+}

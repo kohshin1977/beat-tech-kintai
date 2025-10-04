@@ -1,0 +1,107 @@
+勤怠webアプリを作成したいです。下記の仕様で作成して下さい。
+
+📌 勤怠管理Webアプリ 仕様（最終版）
+1. 利用対象
+
+利用人数：約200名
+
+社員 → スマホWebブラウザ中心
+
+管理者 → PCブラウザ
+
+2. 機能概要
+社員（スマホ）
+
+ログイン（Firebase Authentication：メール+PW）
+
+打刻入力
+
+出勤／退勤（ワンタップで現在時刻）
+
+休憩時間（分単位入力）
+
+勤務内容（自由入力メモ）
+
+勤務状況表示
+
+今日の勤務時間／残業時間（リアルタイム計算）
+
+月ごとの勤務時間／残業時間合計
+
+勤務履歴閲覧
+
+日ごとの一覧 or カレンダー
+
+管理者（PC）
+
+リアルタイムダッシュボード
+
+勤務中／退勤済み社員一覧
+
+今日の残業超過者を即時確認
+
+月次勤怠サマリー
+
+全社員分を1画面に一覧表示（勤務時間合計／残業時間合計）
+
+日次勤怠管理
+
+全社員の日次データを確認可能
+
+エクスポート（管理者専用）
+
+ボタン操作でExcel(.xlsx)を即時生成＆ダウンロード
+
+CSV形式も選択可能
+
+3. エクスポート仕様
+Excelファイル構成
+
+シート1（全社員 月次サマリー）
+
+社員名,部署,勤務時間合計,残業時間合計
+山田太郎,開発部,150h20m,22h00m
+佐藤花子,営業部,142h40m,10h30m
+
+シート2以降（社員ごとの日次データ）
+日付,出勤,退勤,休憩(分),勤務時間,残業時間,勤務内容
+2025-10-01,09:00,20:30,60,10h30m,2h30m,"資料作成"
+2025-10-02,09:15,18:00,45,8h00m,0h00m,"会議・打ち合わせ"
+
+社員ごとに1シート を割り当てる。
+👉 管理者だけがダウンロード可能。
+
+4. データ設計（Firestore）
+users
+
+users/{userId}
+  name: "山田太郎"
+  department: "開発部"
+  role: "employee" | "admin"
+
+
+attendance（日次）
+
+users/{userId}/attendance/{workDate}
+  clockIn: 2025-10-02T09:00:00
+  clockOut: 2025-10-02T20:30:00
+  breakMinutes: 60
+  workDescription: "資料作成"
+  totalMinutes: 570
+  overtimeMinutes: 90
+
+
+monthlySummary（月次）
+users/{userId}/monthlySummary/{yearMonth}
+  totalMinutes: 13400
+  overtimeMinutes: 1800
+
+5. 技術スタック
+
+フロントエンド：React + Bootstrap（モバイルファースト）
+
+バックエンド：Firebase（Authentication / Firestore / Cloud Functions / Hosting）
+
+エクスポート処理：SheetJS (xlsxライブラリ)
+
+インフラ：サーバーレス（Firebase利用）
