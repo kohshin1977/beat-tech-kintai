@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Badge, Button, Card, Col, Form, Nav, Row, Stack, Table } from 'react-bootstrap'
+import { Badge, Button, Card, Col, Form, Modal, Nav, Row, Stack, Table } from 'react-bootstrap'
 import {
   addMonths,
   eachDayOfInterval,
@@ -57,6 +57,10 @@ const EmployeeDashboardPage = () => {
   const [savingClockIn, setSavingClockIn] = useState(false)
   const [savingClockOut, setSavingClockOut] = useState(false)
   const [pickerOpenKey, setPickerOpenKey] = useState({ clockIn: 0, clockOut: 0 })
+  const [breakModal, setBreakModal] = useState({ show: false, day: null, value: '' })
+  const [descriptionModal, setDescriptionModal] = useState({ show: false, day: null, value: '' })
+  const [savingBreak, setSavingBreak] = useState(false)
+  const [savingDescription, setSavingDescription] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -223,29 +227,89 @@ const EmployeeDashboardPage = () => {
     }))
   }
 
-  const handleListCellAction = (day, target) => {
-    setSelectedDate(day)
-    if (!isSameMonth(day, calendarMonth)) {
-      setCalendarMonth(startOfMonth(day))
-    }
-
-    switch (target) {
-      case 'clockIn':
-        requestOpenPicker('clockIn')
-        break
-      case 'clockOut':
-        requestOpenPicker('clockOut')
-        break
-      case 'break':
-        focusField('breakMinutes')
-        break
-      case 'description':
-        focusField('workDescription')
-        break
-      default:
-        break
-    }
+const handleListCellAction = (day, target) => {
+  setSelectedDate(day)
+  if (!isSameMonth(day, calendarMonth)) {
+    setCalendarMonth(startOfMonth(day))
   }
+
+  const key = format(day, 'yyyy-MM-dd')
+  const record = recordsByDate[key]
+
+  switch (target) {
+    case 'clockIn':
+      requestOpenPicker('clockIn')
+      break
+    case 'clockOut':
+      requestOpenPicker('clockOut')
+      break
+    case 'break':
+      if (viewMode === VIEW_MODES.LIST) {
+        setBreakModal({ show: true, day, value: record?.breakMinutes ?? '' })
+      } else {
+        focusField('breakMinutes')
+      }
+      break
+    case 'description':
+      if (viewMode === VIEW_MODES.LIST) {
+        setDescriptionModal({ show: true, day, value: record?.workDescription ?? '' })
+      } else {
+        focusField('workDescription')
+      }
+      break
+    default:
+      break
+  }
+}
+
+const formatDateKey = (date) => format(date, 'yyyy-MM-dd')
+
+const handleBreakModalClose = () => setBreakModal({ show: false, day: null, value: '' })
+const handleDescriptionModalClose = () => setDescriptionModal({ show: false, day: null, value: '' })
+
+const handleBreakModalSave = async () => {
+  if (!user?.uid || !breakModal.day) return
+  setSavingBreak(true)
+  setError('')
+  setSuccess('')
+  const workDateKey = formatDateKey(breakModal.day)
+  try {
+    await updateAttendanceDetails(user.uid, workDateKey, {
+      breakMinutes: Number(breakModal.value ?? 0),
+    })
+    if (formatDateKey(selectedDate) === workDateKey) {
+      setBreakMinutes(Number(breakModal.value ?? 0))
+    }
+    setSuccess(`${formatWithLocale(breakModal.day, 'M月d日(E)')}の休憩時間を保存しました。`)
+    handleBreakModalClose()
+  } catch (saveError) {
+    setError(saveError.message)
+  } finally {
+    setSavingBreak(false)
+  }
+}
+
+const handleDescriptionModalSave = async () => {
+  if (!user?.uid || !descriptionModal.day) return
+  setSavingDescription(true)
+  setError('')
+  setSuccess('')
+  const workDateKey = formatDateKey(descriptionModal.day)
+  try {
+    await updateAttendanceDetails(user.uid, workDateKey, {
+      workDescription: descriptionModal.value ?? '',
+    })
+    if (formatDateKey(selectedDate) === workDateKey) {
+      setWorkDescription(descriptionModal.value ?? '')
+    }
+    setSuccess(`${formatWithLocale(descriptionModal.day, 'M月d日(E)')}の勤務内容を保存しました。`)
+    handleDescriptionModalClose()
+  } catch (saveError) {
+    setError(saveError.message)
+  } finally {
+    setSavingDescription(false)
+  }
+}
 
   return (
     <Stack gap={3}>
@@ -431,107 +495,170 @@ const EmployeeDashboardPage = () => {
         </Card>
       )}
 
-
-      <Card className="shadow-sm">
-        <Card.Body>
-          {loading && (
-            <div className="alert alert-info py-2 mb-3" role="status">
-              データを読み込んでいます…
-            </div>
-          )}
-          <Row className="g-3 align-items-center">
-            <Col xs={12} md={6}>
-              <Stack direction="horizontal" gap={3} className="flex-wrap">
-                <div>
-                  <p className="text-muted small mb-1">出勤</p>
-                  <h3 className="h4 mb-0">{formatTime(attendanceRecord?.clockIn)}</h3>
+      {viewMode === VIEW_MODES.CALENDAR && (
+        <>
+          <Card className="shadow-sm">
+            <Card.Body>
+              {loading && (
+                <div className="alert alert-info py-2 mb-3" role="status">
+                  データを読み込んでいます…
                 </div>
-                <div>
-                  <p className="text-muted small mb-1">退勤</p>
-                  <h3 className="h4 mb-0">{formatTime(attendanceRecord?.clockOut)}</h3>
-                </div>
-                <div>
-                  <p className="text-muted small mb-1">勤務時間</p>
-                  <h3 className="h4 mb-0">
-                    {realtimeWork?.total ?? workMinutesLabel}
-                    {attendanceRecord?.status === 'working' && isViewingToday && !realtimeWork && (
-                      <Badge bg="info" className="ms-2">
-                        集計中
-                      </Badge>
-                    )}
-                  </h3>
-                </div>
-                <div>
-                  <p className="text-muted small mb-1">残業</p>
-                  <h3 className="h4 mb-0">{realtimeWork?.overtime ?? overtimeLabel}</h3>
-                </div>
-              </Stack>
-            </Col>
-            <Col xs={12} md={6}>
-              <Form className="d-flex flex-column gap-3">
-                <Form.Group controlId="clockInTime">
-                  <Form.Label className="mb-1">出勤入力</Form.Label>
-                  <ClockTimePicker
-                    value={clockInInput}
-                    onChange={handleClockInChange}
-                    disabled={savingClockIn}
-                    openRequestKey={pickerOpenKey.clockIn}
-                  />
-                </Form.Group>
+              )}
+              <Row className="g-3 align-items-center">
+                <Col xs={12} md={6}>
+                  <Stack direction="horizontal" gap={3} className="flex-wrap">
+                    <div>
+                      <p className="text-muted small mb-1">出勤</p>
+                      <h3 className="h4 mb-0">{formatTime(attendanceRecord?.clockIn)}</h3>
+                    </div>
+                    <div>
+                      <p className="text-muted small mb-1">退勤</p>
+                      <h3 className="h4 mb-0">{formatTime(attendanceRecord?.clockOut)}</h3>
+                    </div>
+                    <div>
+                      <p className="text-muted small mb-1">勤務時間</p>
+                      <h3 className="h4 mb-0">
+                        {realtimeWork?.total ?? workMinutesLabel}
+                        {attendanceRecord?.status === 'working' && isViewingToday && !realtimeWork && (
+                          <Badge bg="info" className="ms-2">
+                            集計中
+                          </Badge>
+                        )}
+                      </h3>
+                    </div>
+                    <div>
+                      <p className="text-muted small mb-1">残業</p>
+                      <h3 className="h4 mb-0">{realtimeWork?.overtime ?? overtimeLabel}</h3>
+                    </div>
+                  </Stack>
+                </Col>
+                <Col xs={12} md={6}>
+                  <Form className="d-flex flex-column gap-3">
+                    <Form.Group controlId="clockInTime">
+                      <Form.Label className="mb-1">出勤入力</Form.Label>
+                      <ClockTimePicker
+                        value={clockInInput}
+                        onChange={handleClockInChange}
+                        disabled={savingClockIn}
+                        openRequestKey={pickerOpenKey.clockIn}
+                      />
+                    </Form.Group>
 
-                <Form.Group controlId="clockOutTime">
-                  <Form.Label className="mb-1">退勤入力</Form.Label>
-                  <ClockTimePicker
-                    value={clockOutInput}
-                    onChange={handleClockOutChange}
-                    disabled={!hasClockIn || savingClockOut}
-                    openRequestKey={pickerOpenKey.clockOut}
-                  />
-                </Form.Group>
-              </Form>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
+                    <Form.Group controlId="clockOutTime">
+                      <Form.Label className="mb-1">退勤入力</Form.Label>
+                      <ClockTimePicker
+                        value={clockOutInput}
+                        onChange={handleClockOutChange}
+                        disabled={!hasClockIn || savingClockOut}
+                        openRequestKey={pickerOpenKey.clockOut}
+                      />
+                    </Form.Group>
+                  </Form>
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
 
-      <Card className="shadow-sm">
-        <Card.Body>
-          <Row className="g-3">
-            <Col xs={12} md={4}>
-              <Form.Group controlId="breakMinutes">
-                <Form.Label>休憩時間（分）</Form.Label>
-                <Form.Control
-                  type="number"
-                  min={0}
-                  step={15}
-                  value={breakMinutes}
-                  onChange={(event) => setBreakMinutes(event.target.value)}
-                  disabled={!hasClockIn}
-                />
-              </Form.Group>
-            </Col>
-            <Col xs={12} md={8}>
-              <Form.Group controlId="workDescription">
-                <Form.Label>勤務内容</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  value={workDescription}
-                  onChange={(event) => setWorkDescription(event.target.value)}
-                  placeholder="本日の作業内容を入力 (任意)"
-                  disabled={!hasClockIn}
-                />
-              </Form.Group>
-            </Col>
-          </Row>
+          <Card className="shadow-sm">
+            <Card.Body>
+              <Row className="g-3">
+                <Col xs={12} md={4}>
+                  <Form.Group controlId="breakMinutes">
+                    <Form.Label>休憩時間（分）</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min={0}
+                      step={15}
+                      value={breakMinutes}
+                      onChange={(event) => setBreakMinutes(event.target.value)}
+                      disabled={!hasClockIn}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col xs={12} md={8}>
+                  <Form.Group controlId="workDescription">
+                    <Form.Label>勤務内容</Form.Label>
+                    <Form.Control
+                      as="textarea"
+                      rows={3}
+                      value={workDescription}
+                      onChange={(event) => setWorkDescription(event.target.value)}
+                      placeholder="本日の作業内容を入力 (任意)"
+                      disabled={!hasClockIn}
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
 
-          <div className="d-flex justify-content-end mt-3">
-            <Button variant="success" onClick={handleSaveDetails} disabled={!hasClockIn || saving}>
-              {saving ? '保存中…' : '内容を保存'}
-            </Button>
-          </div>
-        </Card.Body>
-      </Card>
+              <div className="d-flex justify-content-end mt-3">
+                <Button variant="success" onClick={handleSaveDetails} disabled={!hasClockIn || saving}>
+                  {saving ? '保存中…' : '内容を保存'}
+                </Button>
+              </div>
+            </Card.Body>
+          </Card>
+        </>
+      )}
+
+      <Modal show={breakModal.show} onHide={handleBreakModalClose} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>{formatWithLocale(breakModal.day ?? selectedDate, 'M月d日(E)')}の休憩時間</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group controlId="breakMinutesModal">
+            <Form.Label>休憩時間（分）</Form.Label>
+            <Form.Control
+              type="number"
+              min={0}
+              step={15}
+              value={breakModal.value}
+              onChange={(event) =>
+                setBreakModal((prev) => ({ ...prev, value: event.target.value }))
+              }
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={handleBreakModalClose} disabled={savingBreak}>
+            キャンセル
+          </Button>
+          <Button variant="primary" onClick={handleBreakModalSave} disabled={savingBreak}>
+            {savingBreak ? '保存中…' : '保存'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={descriptionModal.show} onHide={handleDescriptionModalClose} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>{formatWithLocale(descriptionModal.day ?? selectedDate, 'M月d日(E)')}の勤務内容</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group controlId="workDescriptionModal">
+            <Form.Label>勤務内容</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={4}
+              value={descriptionModal.value}
+              onChange={(event) =>
+                setDescriptionModal((prev) => ({ ...prev, value: event.target.value }))
+              }
+              placeholder="作業内容を入力"
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="outline-secondary"
+            onClick={handleDescriptionModalClose}
+            disabled={savingDescription}
+          >
+            キャンセル
+          </Button>
+          <Button variant="primary" onClick={handleDescriptionModalSave} disabled={savingDescription}>
+            {savingDescription ? '保存中…' : '保存'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Stack>
   )
 }
