@@ -2,7 +2,6 @@ import {
   Timestamp,
   collection,
   collectionGroup,
-  deleteDoc,
   deleteField,
   doc,
   endAt,
@@ -142,7 +141,15 @@ export const clearClockIn = async (userId, workDate) => {
     return
   }
 
-  await deleteDoc(attendanceRef)
+  await updateDoc(attendanceRef, {
+    clockIn: deleteField(),
+    clockOut: deleteField(),
+    totalMinutes: deleteField(),
+    overtimeMinutes: deleteField(),
+    status: deleteField(),
+    updatedAt: serverTimestamp(),
+  })
+
   await updateMonthlySummaryTotals(userId, workDate.slice(0, 7))
 }
 
@@ -157,7 +164,7 @@ export const clearClockOut = async (userId, workDate) => {
   const data = attendanceSnap.data()
 
   if (!data.clockIn) {
-    await deleteDoc(attendanceRef)
+    await clearClockIn(userId, workDate)
     return
   }
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Badge, Button, Card, Col, Form, Row, Stack, Table } from 'react-bootstrap'
+import { Badge, Button, Card, Col, Form, Nav, Row, Stack, Table } from 'react-bootstrap'
 import {
   addMonths,
   eachDayOfInterval,
@@ -11,6 +11,7 @@ import {
   startOfMonth,
   startOfWeek,
 } from 'date-fns'
+import { ja } from 'date-fns/locale'
 import ErrorAlert from '../../components/common/ErrorAlert.jsx'
 import ClockTimePicker from '../../components/common/ClockTimePicker.jsx'
 import useEmployeeAttendance from '../../hooks/useEmployeeAttendance.js'
@@ -24,10 +25,18 @@ import {
 } from '../../services/attendanceService.js'
 import { formatTime, minutesToDuration, timestampToDate } from '../../utils/time.js'
 
+const VIEW_MODES = {
+  CALENDAR: 'calendar',
+  LIST: 'list',
+}
+
+const formatWithLocale = (date, pattern) => format(date, pattern, { locale: ja })
+
 const EmployeeDashboardPage = () => {
   const { user } = useAuth()
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDate, setSelectedDate] = useState(() => new Date())
+  const [viewMode, setViewMode] = useState(VIEW_MODES.LIST)
   const {
     today: attendanceRecord,
     realtimeTotals,
@@ -47,6 +56,7 @@ const EmployeeDashboardPage = () => {
   const [workDescription, setWorkDescription] = useState('')
   const [savingClockIn, setSavingClockIn] = useState(false)
   const [savingClockOut, setSavingClockOut] = useState(false)
+  const [pickerOpenKey, setPickerOpenKey] = useState({ clockIn: 0, clockOut: 0 })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -164,6 +174,12 @@ const EmployeeDashboardPage = () => {
     return map
   }, [monthlyRecords])
 
+  const monthDays = useMemo(() => {
+    const start = startOfMonth(calendarMonth)
+    const end = endOfMonth(calendarMonth)
+    return eachDayOfInterval({ start, end })
+  }, [calendarMonth])
+
   const calendarWeeks = useMemo(() => {
     const start = startOfWeek(startOfMonth(calendarMonth), { weekStartsOn: 0 })
     const end = endOfWeek(endOfMonth(calendarMonth), { weekStartsOn: 0 })
@@ -175,8 +191,8 @@ const EmployeeDashboardPage = () => {
     return weeks
   }, [calendarMonth])
 
-  const selectedDateLabel = format(selectedDate, 'M月d日 (E)')
-  const calendarMonthLabel = format(calendarMonth, 'yyyy年M月')
+  const selectedDateLabel = formatWithLocale(selectedDate, 'M月d日(E)')
+  const calendarMonthLabel = formatWithLocale(calendarMonth, 'yyyy年M月')
 
   const handleSelectDate = (day) => {
     setSelectedDate(day)
@@ -188,7 +204,47 @@ const EmployeeDashboardPage = () => {
   const handleMonthChange = (offset) => {
     const next = startOfMonth(addMonths(calendarMonth, offset))
     setCalendarMonth(next)
-    setSelectedDate(next)
+    // 現在の選択日が同月にない場合は月初に変更
+    setSelectedDate((current) => (isSameMonth(current, next) ? current : next))
+    setPickerOpenKey({ clockIn: 0, clockOut: 0 })
+  }
+
+  const focusField = (fieldId) => {
+    window.requestAnimationFrame(() => {
+      const element = document.getElementById(fieldId)
+      element?.focus()
+    })
+  }
+
+  const requestOpenPicker = (target) => {
+    setPickerOpenKey((prev) => ({
+      ...prev,
+      [target]: prev[target] + 1,
+    }))
+  }
+
+  const handleListCellAction = (day, target) => {
+    setSelectedDate(day)
+    if (!isSameMonth(day, calendarMonth)) {
+      setCalendarMonth(startOfMonth(day))
+    }
+
+    switch (target) {
+      case 'clockIn':
+        requestOpenPicker('clockIn')
+        break
+      case 'clockOut':
+        requestOpenPicker('clockOut')
+        break
+      case 'break':
+        focusField('breakMinutes')
+        break
+      case 'description':
+        focusField('workDescription')
+        break
+      default:
+        break
+    }
   }
 
   return (
@@ -197,6 +253,22 @@ const EmployeeDashboardPage = () => {
         <h2 className="h5 fw-bold mb-1">今日の勤怠状況</h2>
         <p className="text-muted small mb-0">カレンダーから日付を選び、出勤・退勤時刻を入力できます。</p>
       </div>
+
+      <Nav
+        variant="tabs"
+        activeKey={viewMode}
+        onSelect={(key) => {
+          if (key) setViewMode(key)
+        }}
+        className="align-self-start"
+      >
+        <Nav.Item>
+          <Nav.Link eventKey={VIEW_MODES.LIST}>一覧</Nav.Link>
+        </Nav.Item>
+        <Nav.Item>
+          <Nav.Link eventKey={VIEW_MODES.CALENDAR}>カレンダー</Nav.Link>
+        </Nav.Item>
+      </Nav>
 
       <ErrorAlert message={error} onClose={() => setError('')} />
       {success && (
@@ -210,73 +282,155 @@ const EmployeeDashboardPage = () => {
         </div>
       )}
 
-      <Card className="shadow-sm">
-        <Card.Body>
-          <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
-            <div className="d-flex justify-content-between align-items-center gap-2">
-              <Button variant="outline-secondary" size="sm" onClick={() => handleMonthChange(-1)}>
-                前の月
-              </Button>
-              <h3 className="h6 mb-0">{calendarMonthLabel}</h3>
-              <Button variant="outline-secondary" size="sm" onClick={() => handleMonthChange(1)}>
-                次の月
-              </Button>
+      {viewMode === VIEW_MODES.CALENDAR && (
+        <Card className="shadow-sm">
+          <Card.Body>
+            <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
+              <div className="d-flex justify-content-between align-items-center gap-2">
+                <Button variant="outline-secondary" size="sm" onClick={() => handleMonthChange(-1)}>
+                  前の月
+                </Button>
+                <h3 className="h6 mb-0">{calendarMonthLabel}</h3>
+                <Button variant="outline-secondary" size="sm" onClick={() => handleMonthChange(1)}>
+                  次の月
+                </Button>
+              </div>
+              <div className="text-muted small">選択中: {selectedDateLabel}</div>
             </div>
-            <div className="text-muted small">選択中: {selectedDateLabel}</div>
-          </div>
 
-          <Table bordered responsive hover className="mb-0 text-center align-middle">
-            <thead className="table-light">
-              <tr>
-                {['日', '月', '火', '水', '木', '金', '土'].map((label) => (
-                  <th key={label}>{label}</th>
+            <Table bordered responsive hover className="mb-0 text-center align-middle">
+              <thead className="table-light">
+                <tr>
+                  {['日', '月', '火', '水', '木', '金', '土'].map((label) => (
+                    <th key={label}>{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {calendarWeeks.map((week, rowIndex) => (
+                  <tr key={rowIndex}>
+                    {week.map((day) => {
+                      const key = format(day, 'yyyy-MM-dd')
+                      const record = recordsByDate[key]
+                      const isCurrentMonth = isSameMonth(day, calendarMonth)
+                      const isSelected = isSameDay(day, selectedDate)
+
+                      const cellClasses = [
+                        isCurrentMonth ? '' : 'bg-light text-muted',
+                        isSelected ? 'table-primary text-white fw-semibold' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')
+
+                      return (
+                        <td
+                          key={day.toISOString()}
+                          className={cellClasses}
+                          role="button"
+                          onClick={() => handleSelectDate(day)}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <div>{formatWithLocale(day, 'd')}</div>
+                          <div className="small">
+                            {record ? (
+                              <>
+                                <div>{formatTime(record.clockIn)}</div>
+                                <div>{formatTime(record.clockOut)}</div>
+                              </>
+                            ) : (
+                              <span className="text-muted">-</span>
+                            )}
+                          </div>
+                        </td>
+                      )
+                    })}
+                  </tr>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {calendarWeeks.map((week, rowIndex) => (
-                <tr key={rowIndex}>
-                  {week.map((day) => {
+              </tbody>
+            </Table>
+          </Card.Body>
+        </Card>
+      )}
+
+      {viewMode === VIEW_MODES.LIST && (
+        <Card className="shadow-sm">
+          <Card.Body>
+            <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
+              <div className="d-flex justify-content-between align-items-center gap-2">
+                <Button variant="outline-secondary" size="sm" onClick={() => handleMonthChange(-1)}>
+                  前の月
+                </Button>
+                <h3 className="h6 mb-0">{calendarMonthLabel}</h3>
+                <Button variant="outline-secondary" size="sm" onClick={() => handleMonthChange(1)}>
+                  次の月
+                </Button>
+              </div>
+              <div className="text-muted small">選択中: {selectedDateLabel}</div>
+            </div>
+
+            <div className="table-responsive">
+              <Table bordered hover className="mb-0 align-middle text-nowrap">
+                <thead className="table-light">
+                  <tr>
+                    <th>日付</th>
+                    <th>出勤</th>
+                    <th>退勤</th>
+                    <th>休憩(分)</th>
+                    <th>勤務内容</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthDays.map((day) => {
                     const key = format(day, 'yyyy-MM-dd')
                     const record = recordsByDate[key]
-                    const isCurrentMonth = isSameMonth(day, calendarMonth)
                     const isSelected = isSameDay(day, selectedDate)
 
-                    const cellClasses = [
-                      isCurrentMonth ? '' : 'bg-light text-muted',
-                      isSelected ? 'table-primary text-white fw-semibold' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')
-
                     return (
-                      <td
-                        key={day.toISOString()}
-                        className={cellClasses}
-                        role="button"
-                        onClick={() => handleSelectDate(day)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <div>{format(day, 'd')}</div>
-                        <div className="small">
-                          {record ? (
-                            <>
-                              <div>{formatTime(record.clockIn)}</div>
-                              <div>{formatTime(record.clockOut)}</div>
-                            </>
-                          ) : (
-                            <span className="text-muted">-</span>
-                          )}
-                        </div>
-                      </td>
+                      <tr key={key} className={isSelected ? 'table-primary' : ''}>
+                        <td role="button" onClick={() => handleListCellAction(day, 'date')}>
+                          {formatWithLocale(day, 'd日(E)')}
+                        </td>
+                        <td
+                          role="button"
+                          onClick={() => handleListCellAction(day, 'clockIn')}
+                          className="text-primary"
+                        >
+                          {record?.clockIn ? formatTime(record.clockIn) : '--:--'}
+                        </td>
+                        <td
+                          role="button"
+                          onClick={() => handleListCellAction(day, 'clockOut')}
+                          className="text-primary"
+                        >
+                          {record?.clockOut ? formatTime(record.clockOut) : '--:--'}
+                        </td>
+                        <td
+                          role="button"
+                          onClick={() => handleListCellAction(day, 'break')}
+                          className="text-primary"
+                        >
+                          {record?.breakMinutes ?? '-'}
+                        </td>
+                        <td
+                          role="button"
+                          onClick={() => handleListCellAction(day, 'description')}
+                          className="text-primary"
+                          style={{ maxWidth: 240 }}
+                        >
+                          <span className="d-inline-block text-truncate" style={{ maxWidth: 220 }}>
+                            {record?.workDescription ?? '-'}
+                          </span>
+                        </td>
+                      </tr>
                     )
                   })}
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </Card.Body>
-      </Card>
+                </tbody>
+              </Table>
+            </div>
+          </Card.Body>
+        </Card>
+      )}
+
 
       <Card className="shadow-sm">
         <Card.Body>
@@ -321,6 +475,7 @@ const EmployeeDashboardPage = () => {
                     value={clockInInput}
                     onChange={handleClockInChange}
                     disabled={savingClockIn}
+                    openRequestKey={pickerOpenKey.clockIn}
                   />
                 </Form.Group>
 
@@ -330,6 +485,7 @@ const EmployeeDashboardPage = () => {
                     value={clockOutInput}
                     onChange={handleClockOutChange}
                     disabled={!hasClockIn || savingClockOut}
+                    openRequestKey={pickerOpenKey.clockOut}
                   />
                 </Form.Group>
               </Form>

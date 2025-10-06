@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Form, Modal } from 'react-bootstrap'
 
 const HOURS = Array.from({ length: 24 }, (_, index) => index)
@@ -114,11 +114,13 @@ const ClockTimePicker = ({
   minuteStep = 5,
   label,
   autoClose = true,
+  openRequestKey,
 }) => {
   const [show, setShow] = useState(false)
   const [mode, setMode] = useState('hour')
   const [tempHour, setTempHour] = useState(null)
   const [tempMinute, setTempMinute] = useState(null)
+  const lastOpenRequestRef = useRef(openRequestKey)
 
   const minuteValues = useMemo(() => getMinuteValues(minuteStep), [minuteStep])
 
@@ -130,6 +132,14 @@ const ClockTimePicker = ({
     setTempMinute(minuteValues.includes(minute ?? -1) ? minute : minuteValues[0])
     setMode('hour')
   }, [show, value, minuteValues])
+
+  useEffect(() => {
+    if (openRequestKey === undefined || openRequestKey === null) return
+    if (openRequestKey === lastOpenRequestRef.current) return
+    lastOpenRequestRef.current = openRequestKey
+    if (disabled) return
+    setShow(true)
+  }, [openRequestKey, disabled])
 
   const displayValue = useMemo(() => {
     const { hour, minute } = normalizeTimeValue(value)
@@ -254,6 +264,7 @@ ClockTimePicker.propTypes = {
   minuteStep: PropTypes.oneOf([5, 10, 15, 30]),
   label: PropTypes.string,
   autoClose: PropTypes.bool,
+  openRequestKey: PropTypes.number,
 }
 
 export default ClockTimePicker
