@@ -57,6 +57,7 @@ const EmployeeDashboardPage = () => {
   const [savingClockIn, setSavingClockIn] = useState(false)
   const [savingClockOut, setSavingClockOut] = useState(false)
   const [pickerOpenKey, setPickerOpenKey] = useState({ clockIn: 0, clockOut: 0 })
+  const [pendingPickerTarget, setPendingPickerTarget] = useState(null)
   const [breakModal, setBreakModal] = useState({ show: false, day: null, value: '' })
   const [descriptionModal, setDescriptionModal] = useState({ show: false, day: null, value: '' })
   const [savingBreak, setSavingBreak] = useState(false)
@@ -227,89 +228,105 @@ const EmployeeDashboardPage = () => {
     }))
   }
 
-const handleListCellAction = (day, target) => {
-  setSelectedDate(day)
-  if (!isSameMonth(day, calendarMonth)) {
-    setCalendarMonth(startOfMonth(day))
-  }
+  useEffect(() => {
+    if (viewMode !== VIEW_MODES.CALENDAR || !pendingPickerTarget) return
+    requestOpenPicker(pendingPickerTarget)
+    setPendingPickerTarget(null)
+  }, [viewMode, pendingPickerTarget])
 
-  const key = format(day, 'yyyy-MM-dd')
-  const record = recordsByDate[key]
-
-  switch (target) {
-    case 'clockIn':
-      requestOpenPicker('clockIn')
-      break
-    case 'clockOut':
-      requestOpenPicker('clockOut')
-      break
-    case 'break':
-      if (viewMode === VIEW_MODES.LIST) {
-        setBreakModal({ show: true, day, value: record?.breakMinutes ?? '' })
-      } else {
-        focusField('breakMinutes')
-      }
-      break
-    case 'description':
-      if (viewMode === VIEW_MODES.LIST) {
-        setDescriptionModal({ show: true, day, value: record?.workDescription ?? '' })
-      } else {
-        focusField('workDescription')
-      }
-      break
-    default:
-      break
-  }
-}
-
-const formatDateKey = (date) => format(date, 'yyyy-MM-dd')
-
-const handleBreakModalClose = () => setBreakModal({ show: false, day: null, value: '' })
-const handleDescriptionModalClose = () => setDescriptionModal({ show: false, day: null, value: '' })
-
-const handleBreakModalSave = async () => {
-  if (!user?.uid || !breakModal.day) return
-  setSavingBreak(true)
-  setError('')
-  setSuccess('')
-  const workDateKey = formatDateKey(breakModal.day)
-  try {
-    await updateAttendanceDetails(user.uid, workDateKey, {
-      breakMinutes: Number(breakModal.value ?? 0),
-    })
-    if (formatDateKey(selectedDate) === workDateKey) {
-      setBreakMinutes(Number(breakModal.value ?? 0))
+  const handleListCellAction = (day, target) => {
+    setSelectedDate(day)
+    if (!isSameMonth(day, calendarMonth)) {
+      setCalendarMonth(startOfMonth(day))
     }
-    setSuccess(`${formatWithLocale(breakModal.day, 'M月d日(E)')}の休憩時間を保存しました。`)
-    handleBreakModalClose()
-  } catch (saveError) {
-    setError(saveError.message)
-  } finally {
-    setSavingBreak(false)
-  }
-}
 
-const handleDescriptionModalSave = async () => {
-  if (!user?.uid || !descriptionModal.day) return
-  setSavingDescription(true)
-  setError('')
-  setSuccess('')
-  const workDateKey = formatDateKey(descriptionModal.day)
-  try {
-    await updateAttendanceDetails(user.uid, workDateKey, {
-      workDescription: descriptionModal.value ?? '',
-    })
-    if (formatDateKey(selectedDate) === workDateKey) {
-      setWorkDescription(descriptionModal.value ?? '')
+    const key = format(day, 'yyyy-MM-dd')
+    const record = recordsByDate[key]
+
+    switch (target) {
+      case 'clockIn':
+        if (viewMode !== VIEW_MODES.CALENDAR) {
+          setPendingPickerTarget('clockIn')
+          setViewMode(VIEW_MODES.CALENDAR)
+        } else {
+          requestOpenPicker('clockIn')
+        }
+        break
+      case 'clockOut':
+        if (viewMode !== VIEW_MODES.CALENDAR) {
+          setPendingPickerTarget('clockOut')
+          setViewMode(VIEW_MODES.CALENDAR)
+        } else {
+          requestOpenPicker('clockOut')
+        }
+        break
+      case 'break':
+        if (viewMode === VIEW_MODES.LIST) {
+          setBreakModal({ show: true, day, value: record?.breakMinutes ?? '' })
+        } else {
+          focusField('breakMinutes')
+        }
+        break
+      case 'description':
+        if (viewMode === VIEW_MODES.LIST) {
+          setDescriptionModal({ show: true, day, value: record?.workDescription ?? '' })
+        } else {
+          focusField('workDescription')
+        }
+        break
+      default:
+        break
     }
-    setSuccess(`${formatWithLocale(descriptionModal.day, 'M月d日(E)')}の勤務内容を保存しました。`)
-    handleDescriptionModalClose()
-  } catch (saveError) {
-    setError(saveError.message)
-  } finally {
-    setSavingDescription(false)
   }
-}
+
+  const formatDateKey = (date) => format(date, 'yyyy-MM-dd')
+
+  const handleBreakModalClose = () => setBreakModal({ show: false, day: null, value: '' })
+  const handleDescriptionModalClose = () => setDescriptionModal({ show: false, day: null, value: '' })
+
+  const handleBreakModalSave = async () => {
+    if (!user?.uid || !breakModal.day) return
+    setSavingBreak(true)
+    setError('')
+    setSuccess('')
+    const workDateKey = formatDateKey(breakModal.day)
+    try {
+      await updateAttendanceDetails(user.uid, workDateKey, {
+        breakMinutes: Number(breakModal.value ?? 0),
+      })
+      if (formatDateKey(selectedDate) === workDateKey) {
+        setBreakMinutes(Number(breakModal.value ?? 0))
+      }
+      setSuccess(`${formatWithLocale(breakModal.day, 'M月d日(E)')}の休憩時間を保存しました。`)
+      handleBreakModalClose()
+    } catch (saveError) {
+      setError(saveError.message)
+    } finally {
+      setSavingBreak(false)
+    }
+  }
+
+  const handleDescriptionModalSave = async () => {
+    if (!user?.uid || !descriptionModal.day) return
+    setSavingDescription(true)
+    setError('')
+    setSuccess('')
+    const workDateKey = formatDateKey(descriptionModal.day)
+    try {
+      await updateAttendanceDetails(user.uid, workDateKey, {
+        workDescription: descriptionModal.value ?? '',
+      })
+      if (formatDateKey(selectedDate) === workDateKey) {
+        setWorkDescription(descriptionModal.value ?? '')
+      }
+      setSuccess(`${formatWithLocale(descriptionModal.day, 'M月d日(E)')}の勤務内容を保存しました。`)
+      handleDescriptionModalClose()
+    } catch (saveError) {
+      setError(saveError.message)
+    } finally {
+      setSavingDescription(false)
+    }
+  }
 
   return (
     <Stack gap={3}>
