@@ -57,7 +57,6 @@ const EmployeeDashboardPage = () => {
   const [savingClockIn, setSavingClockIn] = useState(false)
   const [savingClockOut, setSavingClockOut] = useState(false)
   const [pickerOpenKey, setPickerOpenKey] = useState({ clockIn: 0, clockOut: 0 })
-  const [pendingPickerTarget, setPendingPickerTarget] = useState(null)
   const [breakModal, setBreakModal] = useState({ show: false, day: null, value: '' })
   const [descriptionModal, setDescriptionModal] = useState({ show: false, day: null, value: '' })
   const [savingBreak, setSavingBreak] = useState(false)
@@ -66,12 +65,12 @@ const EmployeeDashboardPage = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  useEffect(() => {
-    const toInputValue = (value) => {
-      const date = timestampToDate(value)
-      return date ? format(date, 'HH:mm') : ''
-    }
+  const toInputValue = (value) => {
+    const date = timestampToDate(value)
+    return date ? format(date, 'HH:mm') : ''
+  }
 
+  useEffect(() => {
     setClockInInput(toInputValue(attendanceRecord?.clockIn))
     setClockOutInput(toInputValue(attendanceRecord?.clockOut))
     setBreakMinutes(attendanceRecord?.breakMinutes ?? 60)
@@ -153,7 +152,7 @@ const EmployeeDashboardPage = () => {
     }
   }
 
-  const hasClockIn = Boolean(attendanceRecord?.clockIn)
+  const hasClockIn = Boolean(attendanceRecord?.clockIn || clockInInput)
 
   const workMinutesLabel = attendanceRecord?.totalMinutes
     ? minutesToDuration(attendanceRecord.totalMinutes)
@@ -199,6 +198,30 @@ const EmployeeDashboardPage = () => {
   const selectedDateLabel = formatWithLocale(selectedDate, 'M月d日(E)')
   const calendarMonthLabel = formatWithLocale(calendarMonth, 'yyyy年M月')
 
+  const clockInputControls = (
+    <>
+      <Form.Group controlId="clockInTime">
+        <Form.Label className="mb-1">出勤入力</Form.Label>
+        <ClockTimePicker
+          value={clockInInput}
+          onChange={handleClockInChange}
+          disabled={savingClockIn}
+          openRequestKey={pickerOpenKey.clockIn}
+        />
+      </Form.Group>
+
+      <Form.Group controlId="clockOutTime">
+        <Form.Label className="mb-1">退勤入力</Form.Label>
+        <ClockTimePicker
+          value={clockOutInput}
+          onChange={handleClockOutChange}
+          disabled={!hasClockIn || savingClockOut}
+          openRequestKey={pickerOpenKey.clockOut}
+        />
+      </Form.Group>
+    </>
+  )
+
   const handleSelectDate = (day) => {
     setSelectedDate(day)
     if (!isSameMonth(day, calendarMonth)) {
@@ -228,12 +251,6 @@ const EmployeeDashboardPage = () => {
     }))
   }
 
-  useEffect(() => {
-    if (viewMode !== VIEW_MODES.CALENDAR || !pendingPickerTarget) return
-    requestOpenPicker(pendingPickerTarget)
-    setPendingPickerTarget(null)
-  }, [viewMode, pendingPickerTarget])
-
   const handleListCellAction = (day, target) => {
     setSelectedDate(day)
     if (!isSameMonth(day, calendarMonth)) {
@@ -245,20 +262,12 @@ const EmployeeDashboardPage = () => {
 
     switch (target) {
       case 'clockIn':
-        if (viewMode !== VIEW_MODES.CALENDAR) {
-          setPendingPickerTarget('clockIn')
-          setViewMode(VIEW_MODES.CALENDAR)
-        } else {
-          requestOpenPicker('clockIn')
-        }
+        setClockInInput(toInputValue(record?.clockIn))
+        requestOpenPicker('clockIn')
         break
       case 'clockOut':
-        if (viewMode !== VIEW_MODES.CALENDAR) {
-          setPendingPickerTarget('clockOut')
-          setViewMode(VIEW_MODES.CALENDAR)
-        } else {
-          requestOpenPicker('clockOut')
-        }
+        setClockOutInput(toInputValue(record?.clockOut))
+        requestOpenPicker('clockOut')
         break
       case 'break':
         if (viewMode === VIEW_MODES.LIST) {
@@ -434,6 +443,12 @@ const EmployeeDashboardPage = () => {
       )}
 
       {viewMode === VIEW_MODES.LIST && (
+        <div style={{ display: 'none' }}>
+          <Form>{clockInputControls}</Form>
+        </div>
+      )}
+
+      {viewMode === VIEW_MODES.LIST && (
         <Card className="shadow-sm">
           <Card.Body>
             <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
@@ -550,27 +565,7 @@ const EmployeeDashboardPage = () => {
                   </Stack>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form className="d-flex flex-column gap-3">
-                    <Form.Group controlId="clockInTime">
-                      <Form.Label className="mb-1">出勤入力</Form.Label>
-                      <ClockTimePicker
-                        value={clockInInput}
-                        onChange={handleClockInChange}
-                        disabled={savingClockIn}
-                        openRequestKey={pickerOpenKey.clockIn}
-                      />
-                    </Form.Group>
-
-                    <Form.Group controlId="clockOutTime">
-                      <Form.Label className="mb-1">退勤入力</Form.Label>
-                      <ClockTimePicker
-                        value={clockOutInput}
-                        onChange={handleClockOutChange}
-                        disabled={!hasClockIn || savingClockOut}
-                        openRequestKey={pickerOpenKey.clockOut}
-                      />
-                    </Form.Group>
-                  </Form>
+                  <Form className="d-flex flex-column gap-3">{clockInputControls}</Form>
                 </Col>
               </Row>
             </Card.Body>
