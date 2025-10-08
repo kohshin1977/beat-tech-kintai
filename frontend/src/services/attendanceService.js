@@ -19,7 +19,91 @@ import {
 } from 'firebase/firestore'
 import { endOfMonth, format, parseISO, startOfMonth } from 'date-fns'
 import { db } from '../firebase/config.js'
-import { calculateDailyMinutes, calculateOvertimeMinutes } from '../utils/time.js'
+import {
+  calculateDailyMinutes,
+  calculateOvertimeMinutes,
+  calculateBreakMinutesFromPeriods,
+  isValidTimeToken,
+  timeTokenToMinutes,
+} from '../utils/time.js'
+
+const MAX_BREAK_PERIODS = 5
+
+const sanitizeBreakPeriods = (periods) => {
+  if (!Array.isArray(periods)) return []
+  const sanitized = periods
+    .slice(0, MAX_BREAK_PERIODS)
+    .map((period) => ({
+      start: typeof period?.start === 'string' ? period.start : '',
+      end: typeof period?.end === 'string' ? period.end : '',
+    }))
+    .filter(({ start, end }) => {
+      if (!isValidTimeToken(start) || !isValidTimeToken(end)) return false
+      const startMinutes = timeTokenToMinutes(start)
+      const endMinutes = timeTokenToMinutes(end)
+      if (startMinutes === null || endMinutes === null) return false
+      return endMinutes > startMinutes
+    })
+
+  sanitized.sort((a, b) => {
+    const startA = timeTokenToMinutes(a.start) ?? 0
+    const startB = timeTokenToMinutes(b.start) ?? 0
+    return startA - startB
+  })
+
+  return sanitized
+}
+
+const deriveBreakDetails = (existingData = {}, overrides = {}, context = {}) => {
+  const safeExistingData = existingData ?? {}
+  const overridePeriodsDefined = overrides.breakPeriods !== undefined
+  const overridePeriods = overridePeriodsDefined
+    ? sanitizeBreakPeriods(overrides.breakPeriods)
+    : null
+  const existingPeriods = sanitizeBreakPeriods(safeExistingData.breakPeriods)
+  const fallbackPeriods = sanitizeBreakPeriods(context.defaultBreakPeriods ?? [])
+
+  const breakPeriods = overridePeriodsDefined
+    ? overridePeriods
+    : existingPeriods.length > 0
+      ? existingPeriods
+      : fallbackPeriods
+
+  let breakMinutes
+
+  if (overridePeriodsDefined) {
+    breakMinutes = calculateBreakMinutesFromPeriods(breakPeriods)
+  } else if (overrides.breakMinutes !== undefined && overrides.breakMinutes !== null) {
+    breakMinutes = Number(overrides.breakMinutes) || 0
+  } else if (breakPeriods.length > 0) {
+    breakMinutes = calculateBreakMinutesFromPeriods(breakPeriods)
+  } else if (safeExistingData.breakMinutes !== undefined && safeExistingData.breakMinutes !== null) {
+    breakMinutes = Number(safeExistingData.breakMinutes) || 0
+  } else {
+    breakMinutes = 0
+  }
+
+  return {
+    breakPeriods,
+    breakMinutes,
+  }
+}
+
+const getDefaultBreakPeriods = async (userId, workDate) => {
+  const userRef = doc(db, 'users', userId)
+  const userSnap = await getDoc(userRef)
+  if (!userSnap.exists()) return []
+
+  const preferences = userSnap.data()?.attendancePreferences?.breakSchedule
+  if (!preferences) return []
+
+  const { periods = [], effectiveFrom } = preferences
+  if (effectiveFrom && effectiveFrom > workDate) {
+    return []
+  }
+
+  return sanitizeBreakPeriods(periods)
+}
 
 const STANDARD_DAILY_MINUTES = 480
 
@@ -56,7 +140,11 @@ export const clockIn = async (userId, workDate, clockInTime) => {
   const existingData = attendanceSnap.exists() ? attendanceSnap.data() : null
 
   const clockInTimestamp = buildTimestampFromWorkDate(workDate, clockInTime, '出勤時刻')
-  const breakMinutes = existingData?.breakMinutes ?? 0
+  let defaultBreakPeriods = []
+  if (!existingData?.breakPeriods?.length) {
+    defaultBreakPeriods = await getDefaultBreakPeriods(userId, workDate)
+  }
+  const { breakPeriods, breakMinutes } = deriveBreakDetails(existingData, {}, { defaultBreakPeriods })
   const workDescription = existingData?.workDescription ?? ''
   const clockOutTimestamp = existingData?.clockOut ?? null
 
@@ -65,6 +153,7 @@ export const clockIn = async (userId, workDate, clockInTime) => {
     workDate,
     clockIn: clockInTimestamp,
     breakMinutes,
+    breakPeriods,
     workDescription,
     status: clockOutTimestamp ? 'completed' : 'working',
     updatedAt: serverTimestamp(),
@@ -105,7 +194,11 @@ export const clockOut = async (userId, workDate, clockOutTime) => {
   }
 
   const clockOutTimestamp = buildTimestampFromWorkDate(workDate, clockOutTime, '退勤時刻')
-  const breakMinutes = data.breakMinutes ?? 0
+  let defaultBreakPeriods = []
+  if (!data?.breakPeriods?.length) {
+    defaultBreakPeriods = await getDefaultBreakPeriods(userId, workDate)
+  }
+  const { breakPeriods, breakMinutes } = deriveBreakDetails(data, {}, { defaultBreakPeriods })
   const totalMinutes = calculateDailyMinutes(data.clockIn, clockOutTimestamp, breakMinutes)
 
   if (totalMinutes < 0) {
@@ -121,6 +214,7 @@ export const clockOut = async (userId, workDate, clockOutTime) => {
       workDate,
       clockOut: clockOutTimestamp,
       breakMinutes,
+      breakPeriods,
       workDescription: data.workDescription ?? '',
       totalMinutes,
       overtimeMinutes,
@@ -188,7 +282,11 @@ export const updateAttendanceDetails = async (userId, workDate, updates) => {
   }
 
   const data = attendanceSnap.data()
-  const breakMinutes = updates.breakMinutes ?? data.breakMinutes ?? 0
+  let defaultBreakPeriods = []
+  if (!data?.breakPeriods?.length && updates.breakPeriods === undefined) {
+    defaultBreakPeriods = await getDefaultBreakPeriods(userId, workDate)
+  }
+  const { breakPeriods, breakMinutes } = deriveBreakDetails(data, updates, { defaultBreakPeriods })
   const workDescription = updates.workDescription ?? data.workDescription ?? ''
 
   let totalMinutes = data.totalMinutes ?? null
@@ -201,6 +299,7 @@ export const updateAttendanceDetails = async (userId, workDate, updates) => {
 
   await updateDoc(attendanceRef, {
     breakMinutes,
+    breakPeriods,
     workDescription,
     totalMinutes,
     overtimeMinutes,
@@ -210,6 +309,75 @@ export const updateAttendanceDetails = async (userId, workDate, updates) => {
   if (totalMinutes !== null) {
     await updateMonthlySummaryTotals(userId, workDate.slice(0, 7))
   }
+}
+
+export const updateBreakScheduleRange = async (userId, startWorkDate, breakPeriodsInput) => {
+  if (!userId || !startWorkDate) return
+
+  const sanitizedPeriods = sanitizeBreakPeriods(breakPeriodsInput)
+  const breakMinutes = calculateBreakMinutesFromPeriods(sanitizedPeriods)
+
+  const attendanceCol = collection(db, 'users', userId, 'attendance')
+  const attendanceQuery = query(attendanceCol, orderBy('workDate'), startAt(startWorkDate))
+  const snapshot = await getDocs(attendanceQuery)
+
+  const batch = writeBatch(db)
+  const affectedYearMonths = new Set()
+
+  const applyUpdate = (docRef, data = {}) => {
+    let totalMinutes = data.totalMinutes ?? null
+    let overtimeMinutes = data.overtimeMinutes ?? null
+
+    if (data.clockIn && data.clockOut) {
+      totalMinutes = calculateDailyMinutes(data.clockIn, data.clockOut, breakMinutes)
+      overtimeMinutes = calculateOvertimeMinutes(totalMinutes, STANDARD_DAILY_MINUTES)
+    }
+
+    batch.set(
+      docRef,
+      {
+        userId,
+        workDate: docRef.id,
+        breakPeriods: sanitizedPeriods,
+        breakMinutes,
+        totalMinutes,
+        overtimeMinutes,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    )
+
+    affectedYearMonths.add(docRef.id.slice(0, 7))
+  }
+
+  snapshot.forEach((docSnap) => {
+    applyUpdate(docSnap.ref, docSnap.data())
+  })
+
+  const hasStartDoc = snapshot.docs.some((docSnap) => docSnap.id === startWorkDate)
+  if (!hasStartDoc) {
+    const startDocRef = doc(attendanceCol, startWorkDate)
+    applyUpdate(startDocRef, {})
+  }
+
+  await batch.commit()
+
+  await setDoc(
+    doc(db, 'users', userId),
+    {
+      attendancePreferences: {
+        breakSchedule: {
+          periods: sanitizedPeriods,
+          effectiveFrom: startWorkDate,
+        },
+      },
+    },
+    { merge: true },
+  )
+
+  await Promise.all(
+    Array.from(affectedYearMonths).map((yearMonth) => updateMonthlySummaryTotals(userId, yearMonth)),
+  )
 }
 
 export const listenToTodayAttendance = (userId, workDate, callback) => {
@@ -417,10 +585,14 @@ export const listenToDateRangeAttendance = (userId, startDate, endDate, callback
   })
 }
 
-export const calculateRealtimeTotals = (clockIn, breakMinutes = 0) => {
+export const calculateRealtimeTotals = (clockIn, breakMinutes = 0, breakPeriods = []) => {
   if (!clockIn) return { workMinutes: 0, overtimeMinutes: 0 }
   const now = Timestamp.fromDate(new Date())
-  const workMinutes = calculateDailyMinutes(clockIn, now, breakMinutes)
+  const effectiveBreakMinutes =
+    Array.isArray(breakPeriods) && breakPeriods.length > 0
+      ? calculateBreakMinutesFromPeriods(breakPeriods)
+      : breakMinutes
+  const workMinutes = calculateDailyMinutes(clockIn, now, effectiveBreakMinutes)
   const overtimeMinutes = calculateOvertimeMinutes(workMinutes, STANDARD_DAILY_MINUTES)
   return { workMinutes, overtimeMinutes }
 }

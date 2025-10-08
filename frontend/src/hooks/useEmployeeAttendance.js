@@ -67,7 +67,7 @@ const useEmployeeAttendance = (userId, { monthDate: monthDateInput, selectedDate
 
   const realtimeTotals = useMemo(() => {
     if (!isViewingToday || !today?.clockIn || today?.clockOut) return null
-    return calculateRealtimeTotals(today.clockIn, today.breakMinutes)
+    return calculateRealtimeTotals(today.clockIn, today.breakMinutes, today.breakPeriods)
   }, [today, isViewingToday])
 
   const nextMonthLabel = useMemo(() => format(addMonths(monthDate, 1), 'yyyy-MM'), [monthDate])

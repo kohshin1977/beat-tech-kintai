@@ -16,14 +16,23 @@ import ErrorAlert from '../../components/common/ErrorAlert.jsx'
 import ClockTimePicker from '../../components/common/ClockTimePicker.jsx'
 import useEmployeeAttendance from '../../hooks/useEmployeeAttendance.js'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { getUserProfile } from '../../services/userService.js'
 import {
   clockIn,
   clockOut,
   clearClockIn,
   clearClockOut,
   updateAttendanceDetails,
+  updateBreakScheduleRange,
 } from '../../services/attendanceService.js'
-import { formatTime, minutesToDuration, timestampToDate } from '../../utils/time.js'
+import {
+  calculateBreakMinutesFromPeriods,
+  formatTime,
+  minutesToDuration,
+  timestampToDate,
+  isValidTimeToken,
+  timeTokenToMinutes,
+} from '../../utils/time.js'
 
 const VIEW_MODES = {
   CALENDAR: 'calendar',
@@ -31,6 +40,53 @@ const VIEW_MODES = {
 }
 
 const formatWithLocale = (date, pattern) => format(date, pattern, { locale: ja })
+
+const MAX_BREAK_SLOTS = 5
+
+const normalizeBreakSchedule = (values = []) => {
+  if (!Array.isArray(values)) return []
+
+  const sanitized = values
+    .map((slot) => ({
+      start: typeof slot?.start === 'string' ? slot.start.trim() : '',
+      end: typeof slot?.end === 'string' ? slot.end.trim() : '',
+    }))
+    .filter(({ start, end }) => {
+      if (!isValidTimeToken(start) || !isValidTimeToken(end)) return false
+      const startMinutes = timeTokenToMinutes(start)
+      const endMinutes = timeTokenToMinutes(end)
+      if (startMinutes === null || endMinutes === null) return false
+      return endMinutes > startMinutes
+    })
+
+  sanitized.sort((a, b) => {
+    const startA = timeTokenToMinutes(a.start) ?? 0
+    const startB = timeTokenToMinutes(b.start) ?? 0
+    return startA - startB
+  })
+
+  return sanitized.slice(0, MAX_BREAK_SLOTS)
+}
+
+const buildBreakScheduleValues = (periods = []) => {
+  const normalized = normalizeBreakSchedule(periods)
+  return Array.from({ length: MAX_BREAK_SLOTS }, (_, index) => ({
+    start: normalized[index]?.start ?? '',
+    end: normalized[index]?.end ?? '',
+  }))
+}
+
+const areBreakSchedulesEqual = (a = [], b = []) => {
+  if (a.length !== b.length) return false
+  return a.every((slot, index) => slot.start === b[index]?.start && slot.end === b[index]?.end)
+}
+
+const buildInitialBreakScheduleModalState = () => ({
+  show: false,
+  day: null,
+  values: buildBreakScheduleValues(),
+  initialNormalized: [],
+})
 
 const EmployeeDashboardPage = () => {
   const { user } = useAuth()
@@ -61,9 +117,12 @@ const EmployeeDashboardPage = () => {
   const [descriptionModal, setDescriptionModal] = useState({ show: false, day: null, value: '' })
   const [savingBreak, setSavingBreak] = useState(false)
   const [savingDescription, setSavingDescription] = useState(false)
+  const [breakScheduleModal, setBreakScheduleModal] = useState(() => buildInitialBreakScheduleModalState())
+  const [savingBreakSchedule, setSavingBreakSchedule] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [defaultBreakSchedule, setDefaultBreakSchedule] = useState({ periods: [], effectiveFrom: null })
 
   const toInputValue = (value) => {
     const date = timestampToDate(value)
@@ -76,6 +135,39 @@ const EmployeeDashboardPage = () => {
     setBreakMinutes(attendanceRecord?.breakMinutes ?? 60)
     setWorkDescription(attendanceRecord?.workDescription ?? '')
   }, [attendanceRecord])
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setDefaultBreakSchedule({ periods: [], effectiveFrom: null })
+      return undefined
+    }
+
+    let cancelled = false
+
+    const loadDefaultSchedule = async () => {
+      try {
+        const profile = await getUserProfile(user.uid)
+        if (cancelled) return
+        const schedule = profile?.attendancePreferences?.breakSchedule ?? null
+        const normalizedPeriods = schedule?.periods ? normalizeBreakSchedule(schedule.periods) : []
+        setDefaultBreakSchedule({
+          periods: normalizedPeriods,
+          effectiveFrom: schedule?.effectiveFrom ?? null,
+        })
+      } catch (loadError) {
+        console.error('Failed to load default break schedule', loadError)
+        if (!cancelled) {
+          setDefaultBreakSchedule({ periods: [], effectiveFrom: null })
+        }
+      }
+    }
+
+    loadDefaultSchedule()
+
+    return () => {
+      cancelled = true
+    }
+  }, [user?.uid])
 
   const getExistingTime = (timestampValue) => {
     const date = timestampToDate(timestampValue)
@@ -290,6 +382,106 @@ const EmployeeDashboardPage = () => {
 
   const formatDateKey = (date) => format(date, 'yyyy-MM-dd')
 
+  const handleBreakScheduleModalClose = () => {
+    setBreakScheduleModal(buildInitialBreakScheduleModalState())
+  }
+
+  const handleOpenBreakScheduleModal = (day) => {
+    setError('')
+    setSuccess('')
+    setSelectedDate(day)
+    if (!isSameMonth(day, calendarMonth)) {
+      setCalendarMonth(startOfMonth(day))
+    }
+    const key = formatDateKey(day)
+    const record = recordsByDate[key]
+    const normalizedRecordPeriods = normalizeBreakSchedule(record?.breakPeriods ?? [])
+    const dateKey = formatDateKey(day)
+    const defaultApplicable =
+      normalizedRecordPeriods.length === 0 &&
+      defaultBreakSchedule.periods.length > 0 &&
+      (!defaultBreakSchedule.effectiveFrom || defaultBreakSchedule.effectiveFrom <= dateKey)
+    const initialPeriods = defaultApplicable ? defaultBreakSchedule.periods : normalizedRecordPeriods
+    const initialNormalized = normalizeBreakSchedule(initialPeriods)
+    setBreakScheduleModal({
+      show: true,
+      day,
+      values: buildBreakScheduleValues(initialPeriods),
+      initialNormalized,
+    })
+  }
+
+  const handleBreakScheduleFieldChange = (index, field, value) => {
+    if (!['start', 'end'].includes(field)) return
+    setBreakScheduleModal((prev) => {
+      const nextValues = prev.values.map((slot, slotIndex) =>
+        slotIndex === index ? { ...slot, [field]: value } : slot,
+      )
+      return { ...prev, values: nextValues }
+    })
+  }
+
+  const validateBreakSchedule = (values) => {
+    for (let index = 0; index < values.length; index += 1) {
+      const slot = values[index]
+      const hasStart = Boolean(slot.start)
+      const hasEnd = Boolean(slot.end)
+      if (hasStart !== hasEnd) {
+        return `休憩時間${index + 1}の開始と終了時刻を両方入力してください。`
+      }
+      if (hasStart && hasEnd) {
+        if (!isValidTimeToken(slot.start) || !isValidTimeToken(slot.end)) {
+          return `休憩時間${index + 1}の時刻はHH:MM形式で入力してください。`
+        }
+        const startMinutes = timeTokenToMinutes(slot.start)
+        const endMinutes = timeTokenToMinutes(slot.end)
+        if (startMinutes !== null && endMinutes !== null && endMinutes <= startMinutes) {
+          return `休憩時間${index + 1}は終了時刻を開始時刻より後に設定してください。`
+        }
+      }
+    }
+    return null
+  }
+
+  const handleBreakScheduleSave = async () => {
+    if (!user?.uid || !breakScheduleModal.day) return
+
+    const validationMessage = validateBreakSchedule(breakScheduleModal.values)
+    if (validationMessage) {
+      setError(validationMessage)
+      return
+    }
+
+    const normalized = normalizeBreakSchedule(breakScheduleModal.values)
+    if (areBreakSchedulesEqual(normalized, breakScheduleModal.initialNormalized)) {
+      handleBreakScheduleModalClose()
+      return
+    }
+
+    setSavingBreakSchedule(true)
+    setError('')
+    setSuccess('')
+    const workDateKey = formatDateKey(breakScheduleModal.day)
+
+    try {
+      await updateBreakScheduleRange(user.uid, workDateKey, normalized)
+
+      if (formatDateKey(selectedDate) === workDateKey) {
+        setBreakMinutes(calculateBreakMinutesFromPeriods(normalized))
+      }
+
+      setDefaultBreakSchedule({ periods: normalized, effectiveFrom: workDateKey })
+
+      const messageLabel = format(breakScheduleModal.day, 'yyyy/MM/dd')
+      setSuccess(`${messageLabel}以降の休憩時間が設定されました。`)
+      handleBreakScheduleModalClose()
+    } catch (updateError) {
+      setError(updateError.message)
+    } finally {
+      setSavingBreakSchedule(false)
+    }
+  }
+
   const handleBreakModalClose = () => setBreakModal({ show: false, day: null, value: '' })
   const handleDescriptionModalClose = () => setDescriptionModal({ show: false, day: null, value: '' })
 
@@ -473,6 +665,7 @@ const EmployeeDashboardPage = () => {
                     <th>退勤</th>
                     <th>休憩(分)</th>
                     <th>勤務内容</th>
+                    <th>休憩時間</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -516,6 +709,18 @@ const EmployeeDashboardPage = () => {
                           <span className="d-inline-block text-truncate" style={{ maxWidth: 220 }}>
                             {record?.workDescription ?? '-'}
                           </span>
+                        </td>
+                        <td>
+                          <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleOpenBreakScheduleModal(day)
+                            }}
+                          >
+                            設定
+                          </Button>
                         </td>
                       </tr>
                     )
@@ -611,6 +816,59 @@ const EmployeeDashboardPage = () => {
           </Card>
         </>
       )}
+
+      <Modal show={breakScheduleModal.show} onHide={handleBreakScheduleModalClose} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>{formatWithLocale(breakScheduleModal.day ?? selectedDate, 'M月d日(E)')}の休憩時間</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="d-flex flex-column gap-3">
+            {breakScheduleModal.values.map((slot, index) => (
+              <Row key={index} className="g-3 align-items-start">
+                <Col xs={12} md={4} className="d-flex align-items-center">
+                  <span className="fw-semibold">休憩時間{index + 1}</span>
+                </Col>
+                <Col xs={6} md={4}>
+                  <Form.Group controlId={`break-start-${index}`}>
+                    <Form.Label className="small mb-1">開始</Form.Label>
+                    <ClockTimePicker
+                      value={slot.start}
+                      onChange={(value) => handleBreakScheduleFieldChange(index, 'start', value)}
+                      disabled={savingBreakSchedule}
+                      minuteStep={5}
+                      label={`休憩時間${index + 1}の開始時刻`}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col xs={6} md={4}>
+                  <Form.Group controlId={`break-end-${index}`}>
+                    <Form.Label className="small mb-1">終了</Form.Label>
+                    <ClockTimePicker
+                      value={slot.end}
+                      onChange={(value) => handleBreakScheduleFieldChange(index, 'end', value)}
+                      disabled={savingBreakSchedule}
+                      minuteStep={5}
+                      label={`休憩時間${index + 1}の終了時刻`}
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+            ))}
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="outline-secondary"
+            onClick={handleBreakScheduleModalClose}
+            disabled={savingBreakSchedule}
+          >
+            キャンセル
+          </Button>
+          <Button variant="primary" onClick={handleBreakScheduleSave} disabled={savingBreakSchedule}>
+            {savingBreakSchedule ? '保存中…' : '保存'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <Modal show={breakModal.show} onHide={handleBreakModalClose} centered>
         <Modal.Header closeButton>

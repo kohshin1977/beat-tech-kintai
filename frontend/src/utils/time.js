@@ -1,5 +1,26 @@
 import { differenceInMinutes, format, isValid, parseISO } from 'date-fns'
 
+const TIME_TOKEN_PATTERN = /^([0-1]\d|2[0-3]):([0-5]\d)$/
+
+export const isValidTimeToken = (value) => TIME_TOKEN_PATTERN.test(value ?? '')
+
+export const timeTokenToMinutes = (value) => {
+  if (!isValidTimeToken(value)) return null
+  const [, hours, minutes] = TIME_TOKEN_PATTERN.exec(value)
+  return Number.parseInt(hours, 10) * 60 + Number.parseInt(minutes, 10)
+}
+
+export const calculateBreakMinutesFromPeriods = (periods = []) => {
+  if (!Array.isArray(periods)) return 0
+  return periods.reduce((total, period) => {
+    if (!period) return total
+    const startMinutes = timeTokenToMinutes(period.start)
+    const endMinutes = timeTokenToMinutes(period.end)
+    if (startMinutes === null || endMinutes === null) return total
+    return total + Math.max(endMinutes - startMinutes, 0)
+  }, 0)
+}
+
 export const timestampToDate = (value) => {
   if (!value) return null
   if (typeof value.toDate === 'function') return value.toDate()

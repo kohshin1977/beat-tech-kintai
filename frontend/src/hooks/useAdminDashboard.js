@@ -43,7 +43,7 @@ const useAdminDashboard = (targetDate = new Date()) => {
       const clockOutLabel = formatTime(record?.clockOut)
       const baseMinutes = record?.totalMinutes ?? 0
       const workingRealtime = !record?.clockOut && record?.clockIn
-        ? calculateRealtimeTotals(record.clockIn, record.breakMinutes)
+        ? calculateRealtimeTotals(record.clockIn, record.breakMinutes, record.breakPeriods)
         : null
 
       const totalMinutes = workingRealtime?.workMinutes ?? baseMinutes
