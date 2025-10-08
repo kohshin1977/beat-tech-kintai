@@ -270,6 +270,19 @@ const EmployeeDashboardPage = () => {
     return map
   }, [monthlyRecords])
 
+  const breakScheduleHistory = useMemo(() => {
+    return monthlyRecords
+      .map((record) => ({
+        workDate: record?.workDate ?? '',
+        periods: normalizeBreakSchedule(record?.breakPeriods ?? []),
+      }))
+      .filter((entry) => entry.workDate && entry.periods.length > 0)
+      .sort((a, b) => {
+        if (a.workDate === b.workDate) return 0
+        return a.workDate > b.workDate ? -1 : 1
+      })
+  }, [monthlyRecords])
+
   const monthDays = useMemo(() => {
     const start = startOfMonth(calendarMonth)
     const end = endOfMonth(calendarMonth)
@@ -382,6 +395,17 @@ const EmployeeDashboardPage = () => {
 
   const formatDateKey = (date) => format(date, 'yyyy-MM-dd')
 
+  const findMostRecentBreakPeriods = (dateKey) => {
+    if (!dateKey) return []
+    for (const entry of breakScheduleHistory) {
+      if (!entry.workDate) continue
+      if (entry.workDate <= dateKey) {
+        return entry.periods
+      }
+    }
+    return breakScheduleHistory[0]?.periods ?? []
+  }
+
   const handleBreakScheduleModalClose = () => {
     setBreakScheduleModal(buildInitialBreakScheduleModalState())
   }
@@ -401,12 +425,28 @@ const EmployeeDashboardPage = () => {
       normalizedRecordPeriods.length === 0 &&
       defaultBreakSchedule.periods.length > 0 &&
       (!defaultBreakSchedule.effectiveFrom || defaultBreakSchedule.effectiveFrom <= dateKey)
-    const initialPeriods = defaultApplicable ? defaultBreakSchedule.periods : normalizedRecordPeriods
+    const hasClockTimes = Boolean(record?.clockIn || record?.clockOut)
+
+    let initialPeriods = normalizedRecordPeriods
+
+    if (initialPeriods.length === 0) {
+      if (!hasClockTimes) {
+        const recentPeriods = findMostRecentBreakPeriods(dateKey)
+        if (recentPeriods.length > 0) {
+          initialPeriods = recentPeriods
+        } else if (defaultApplicable) {
+          initialPeriods = defaultBreakSchedule.periods
+        }
+      } else if (defaultApplicable) {
+        initialPeriods = defaultBreakSchedule.periods
+      }
+    }
+
     const initialNormalized = normalizeBreakSchedule(initialPeriods)
     setBreakScheduleModal({
       show: true,
       day,
-      values: buildBreakScheduleValues(initialPeriods),
+      values: buildBreakScheduleValues(initialNormalized),
       initialNormalized,
     })
   }
