@@ -3,7 +3,7 @@ import { Card, Form, Table } from 'react-bootstrap'
 import { format } from 'date-fns'
 import { listenToTodayStatuses } from '../../services/attendanceService.js'
 import { listenToEmployees } from '../../services/userService.js'
-import { formatTime, minutesToDuration, formatClockDuration } from '../../utils/time.js'
+import { formatTime, minutesToDuration, formatActualWorkDuration } from '../../utils/time.js'
 
 const AdminDailyViewPage = () => {
   const [selectedDate, setSelectedDate] = useState(() => format(new Date(), 'yyyy-MM-dd'))
@@ -33,6 +33,7 @@ const AdminDailyViewPage = () => {
           clockIn: record?.clockIn,
           clockOut: record?.clockOut,
           breakMinutes: record?.breakMinutes ?? 0,
+          breakPeriods: record?.breakPeriods ?? [],
           totalMinutes: record?.totalMinutes ?? 0,
           overtimeMinutes: record?.overtimeMinutes ?? 0,
           workDescription: record?.workDescription ?? '',
@@ -131,7 +132,14 @@ const AdminDailyViewPage = () => {
                   <td>{formatTime(row.clockIn)}</td>
                   <td>{formatTime(row.clockOut)}</td>
                   <td className="text-end">{row.breakMinutes}</td>
-                  <td className="text-end">{formatClockDuration(row.clockIn, row.clockOut)}</td>
+                  <td className="text-end">
+                    {formatActualWorkDuration(
+                      row.clockIn,
+                      row.clockOut,
+                      row.breakMinutes,
+                      row.breakPeriods,
+                    )}
+                  </td>
                   <td className="text-end">{minutesToDuration(row.totalMinutes)}</td>
                   <td className="text-end">{minutesToDuration(row.overtimeMinutes)}</td>
                   <td>{row.workDescription}</td>

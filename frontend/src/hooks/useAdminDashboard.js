@@ -58,6 +58,7 @@ const useAdminDashboard = (targetDate = new Date()) => {
         clockIn: record?.clockIn,
         clockOut: record?.clockOut,
         breakMinutes: record?.breakMinutes ?? 0,
+        breakPeriods: record?.breakPeriods ?? [],
         totalMinutes,
         overtimeMinutes,
         clockInLabel,

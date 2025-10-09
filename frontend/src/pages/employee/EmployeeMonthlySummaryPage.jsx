@@ -3,7 +3,7 @@ import { Card, Col, Form, Row, Table } from 'react-bootstrap'
 import { format, parseISO } from 'date-fns'
 import useEmployeeAttendance from '../../hooks/useEmployeeAttendance.js'
 import { useAuth } from '../../context/AuthContext.jsx'
-import { minutesToDuration, formatClockDuration, formatTime } from '../../utils/time.js'
+import { minutesToDuration, formatActualWorkDuration, formatTime } from '../../utils/time.js'
 
 const EmployeeMonthlySummaryPage = () => {
   const { user } = useAuth()
@@ -109,7 +109,14 @@ const EmployeeMonthlySummaryPage = () => {
                   <td>{formatTime(record.clockIn)}</td>
                   <td>{formatTime(record.clockOut)}</td>
                   <td className="text-end">{record.breakMinutes ?? 0}</td>
-                  <td className="text-end">{formatClockDuration(record.clockIn, record.clockOut)}</td>
+                  <td className="text-end">
+                    {formatActualWorkDuration(
+                      record.clockIn,
+                      record.clockOut,
+                      record.breakMinutes,
+                      record.breakPeriods,
+                    )}
+                  </td>
                   <td className="text-end">{minutesToDuration(record.totalMinutes ?? 0)}</td>
                   <td className="text-end">{minutesToDuration(record.overtimeMinutes ?? 0)}</td>
                   <td>{record.workDescription}</td>

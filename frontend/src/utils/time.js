@@ -76,8 +76,63 @@ export const minutesToTimeLabel = (minutes) => {
   return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
 }
 
-export const formatClockDuration = (clockIn, clockOut) => {
-  const minutes = calculateSpanMinutes(clockIn, clockOut)
+const dateWithTimeToken = (baseDate, token) => {
+  if (!baseDate || !isValidTimeToken(token)) return null
+  const result = new Date(baseDate)
+  const [hours, minutes] = token.split(':').map((value) => Number.parseInt(value, 10))
+  result.setHours(hours, minutes, 0, 0)
+  return result
+}
+
+const resolveBreakMinutes = (breakMinutes, breakPeriods = []) => {
+  let parsed = null
+
+  if (breakMinutes !== null && breakMinutes !== undefined && breakMinutes !== '') {
+    parsed = typeof breakMinutes === 'number' ? breakMinutes : Number.parseInt(breakMinutes, 10)
+  }
+
+  if (Number.isFinite(parsed)) {
+    return Math.max(parsed, 0)
+  }
+
+  if (Array.isArray(breakPeriods) && breakPeriods.length > 0) {
+    return calculateBreakMinutesFromPeriods(breakPeriods)
+  }
+
+  return 0
+}
+
+export const calculateActualWorkMinutes = (clockIn, clockOut, breakMinutes, breakPeriods) => {
+  const startDate = timestampToDate(clockIn)
+  const endDate = timestampToDate(clockOut)
+  if (!startDate || !endDate) return null
+
+  const spanMinutes = Math.max(differenceInMinutes(endDate, startDate), 0)
+
+  let deductedMinutes = 0
+
+  if (Array.isArray(breakPeriods) && breakPeriods.length > 0) {
+    deductedMinutes = breakPeriods.reduce((total, period) => {
+      if (!period) return total
+      const breakStart = dateWithTimeToken(startDate, period.start)
+      const breakEnd = dateWithTimeToken(startDate, period.end)
+      if (!breakStart || !breakEnd) return total
+
+      const overlapStart = breakStart > startDate ? breakStart : startDate
+      const overlapEnd = breakEnd < endDate ? breakEnd : endDate
+      if (overlapEnd <= overlapStart) return total
+
+      return total + Math.max(differenceInMinutes(overlapEnd, overlapStart), 0)
+    }, 0)
+  } else {
+    deductedMinutes = resolveBreakMinutes(breakMinutes, breakPeriods)
+  }
+
+  return Math.max(spanMinutes - Math.min(deductedMinutes, spanMinutes), 0)
+}
+
+export const formatActualWorkDuration = (clockIn, clockOut, breakMinutes, breakPeriods) => {
+  const minutes = calculateActualWorkMinutes(clockIn, clockOut, breakMinutes, breakPeriods)
   if (minutes === null) return '--:--'
   return minutesToTimeLabel(minutes)
 }
