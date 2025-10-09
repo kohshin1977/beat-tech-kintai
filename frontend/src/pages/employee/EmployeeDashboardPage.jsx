@@ -27,6 +27,7 @@ import {
 } from '../../services/attendanceService.js'
 import {
   calculateBreakMinutesFromPeriods,
+  formatClockDuration,
   formatTime,
   minutesToDuration,
   timestampToDate,
@@ -704,6 +705,7 @@ const EmployeeDashboardPage = () => {
                     <th>出勤</th>
                     <th>退勤</th>
                     <th>休憩(分)</th>
+                    <th>実働時間</th>
                     <th>勤務内容</th>
                     <th>休憩時間</th>
                   </tr>
@@ -739,6 +741,9 @@ const EmployeeDashboardPage = () => {
                           className="text-primary"
                         >
                           {record?.breakMinutes ?? '-'}
+                        </td>
+                        <td className="text-end">
+                          {formatClockDuration(record?.clockIn, record?.clockOut)}
                         </td>
                         <td
                           role="button"

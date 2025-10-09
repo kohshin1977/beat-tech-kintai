@@ -46,6 +46,14 @@ export const calculateOvertimeMinutes = (totalMinutes, thresholdMinutes = 480) =
   return Math.max(totalMinutes - thresholdMinutes, 0)
 }
 
+export const calculateSpanMinutes = (startTime, endTime) => {
+  const startDate = timestampToDate(startTime)
+  const endDate = timestampToDate(endTime)
+  if (!startDate || !endDate) return null
+
+  return Math.max(differenceInMinutes(endDate, startDate), 0)
+}
+
 export const minutesToDuration = (minutes) => {
   if (minutes === null || minutes === undefined) return '-'
   const sign = minutes < 0 ? '-' : ''
@@ -58,6 +66,20 @@ export const minutesToDuration = (minutes) => {
 export const minutesToHours = (minutes) => {
   if (minutes === null || minutes === undefined) return 0
   return Math.round((minutes / 60) * 100) / 100
+}
+
+export const minutesToTimeLabel = (minutes) => {
+  if (minutes === null || minutes === undefined) return '--:--'
+  const absolute = Math.max(minutes, 0)
+  const hours = Math.floor(absolute / 60)
+  const mins = absolute % 60
+  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
+}
+
+export const formatClockDuration = (clockIn, clockOut) => {
+  const minutes = calculateSpanMinutes(clockIn, clockOut)
+  if (minutes === null) return '--:--'
+  return minutesToTimeLabel(minutes)
 }
 
 export const formatTime = (value) => {

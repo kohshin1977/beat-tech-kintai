@@ -3,7 +3,7 @@ import { Card, Form, Table } from 'react-bootstrap'
 import { format } from 'date-fns'
 import { listenToTodayStatuses } from '../../services/attendanceService.js'
 import { listenToEmployees } from '../../services/userService.js'
-import { formatTime, minutesToDuration } from '../../utils/time.js'
+import { formatTime, minutesToDuration, formatClockDuration } from '../../utils/time.js'
 
 const AdminDailyViewPage = () => {
   const [selectedDate, setSelectedDate] = useState(() => format(new Date(), 'yyyy-MM-dd'))
@@ -110,6 +110,7 @@ const AdminDailyViewPage = () => {
                 <th>出勤</th>
                 <th>退勤</th>
                 <th className="text-end">休憩(分)</th>
+                <th className="text-end">実働時間</th>
                 <th className="text-end">勤務時間</th>
                 <th className="text-end">残業時間</th>
                 <th>勤務内容</th>
@@ -118,7 +119,7 @@ const AdminDailyViewPage = () => {
             <tbody>
               {mergedRows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="text-center text-muted py-4">
+                  <td colSpan={9} className="text-center text-muted py-4">
                     社員情報が登録されていません。
                   </td>
                 </tr>
@@ -130,6 +131,7 @@ const AdminDailyViewPage = () => {
                   <td>{formatTime(row.clockIn)}</td>
                   <td>{formatTime(row.clockOut)}</td>
                   <td className="text-end">{row.breakMinutes}</td>
+                  <td className="text-end">{formatClockDuration(row.clockIn, row.clockOut)}</td>
                   <td className="text-end">{minutesToDuration(row.totalMinutes)}</td>
                   <td className="text-end">{minutesToDuration(row.overtimeMinutes)}</td>
                   <td>{row.workDescription}</td>

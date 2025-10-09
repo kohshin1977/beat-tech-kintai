@@ -3,8 +3,7 @@ import { Card, Col, Form, Row, Table } from 'react-bootstrap'
 import { format, parseISO } from 'date-fns'
 import useEmployeeAttendance from '../../hooks/useEmployeeAttendance.js'
 import { useAuth } from '../../context/AuthContext.jsx'
-import { minutesToDuration } from '../../utils/time.js'
-import { formatTime } from '../../utils/time.js'
+import { minutesToDuration, formatClockDuration, formatTime } from '../../utils/time.js'
 
 const EmployeeMonthlySummaryPage = () => {
   const { user } = useAuth()
@@ -90,6 +89,7 @@ const EmployeeMonthlySummaryPage = () => {
                 <th>出勤</th>
                 <th>退勤</th>
                 <th className="text-end">休憩(分)</th>
+                <th className="text-end">実働時間</th>
                 <th className="text-end">勤務時間</th>
                 <th className="text-end">残業時間</th>
                 <th>勤務内容</th>
@@ -98,7 +98,7 @@ const EmployeeMonthlySummaryPage = () => {
             <tbody>
               {monthlyRecords.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center text-muted py-4">
+                  <td colSpan={8} className="text-center text-muted py-4">
                     該当期間の勤怠データはありません。
                   </td>
                 </tr>
@@ -109,6 +109,7 @@ const EmployeeMonthlySummaryPage = () => {
                   <td>{formatTime(record.clockIn)}</td>
                   <td>{formatTime(record.clockOut)}</td>
                   <td className="text-end">{record.breakMinutes ?? 0}</td>
+                  <td className="text-end">{formatClockDuration(record.clockIn, record.clockOut)}</td>
                   <td className="text-end">{minutesToDuration(record.totalMinutes ?? 0)}</td>
                   <td className="text-end">{minutesToDuration(record.overtimeMinutes ?? 0)}</td>
                   <td>{record.workDescription}</td>

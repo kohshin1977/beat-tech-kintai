@@ -1,6 +1,6 @@
 import { Badge, Card, Col, Row, Table } from 'react-bootstrap'
 import useAdminDashboard from '../../hooks/useAdminDashboard.js'
-import { minutesToDuration } from '../../utils/time.js'
+import { minutesToDuration, formatClockDuration } from '../../utils/time.js'
 
 const AdminDashboardPage = () => {
   const { stats, workingEmployees, completedEmployees, notStartedEmployees, overtimeEmployees } =
@@ -15,6 +15,7 @@ const AdminDashboardPage = () => {
       <td>{item.clockInLabel ?? '--:--'}</td>
       <td>{item.clockOutLabel ?? '--:--'}</td>
       <td className="text-end">{item.breakMinutes}</td>
+      <td className="text-end">{formatClockDuration(item.clockIn, item.clockOut)}</td>
       <td className="text-end">{minutesToDuration(item.totalMinutes ?? 0)}</td>
       <td className="text-end">
         <Badge bg={item.overtimeMinutes > 0 ? 'danger' : 'secondary'}>
@@ -78,6 +79,7 @@ const AdminDashboardPage = () => {
                     <th>出勤</th>
                     <th>退勤</th>
                     <th className="text-end">休憩</th>
+                    <th className="text-end">実働</th>
                     <th className="text-end">勤務</th>
                     <th className="text-end">残業</th>
                   </tr>
@@ -85,7 +87,7 @@ const AdminDashboardPage = () => {
                 <tbody>
                   {workingEmployees.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="text-center text-muted py-4">
+                      <td colSpan={7} className="text-center text-muted py-4">
                         勤務中の社員はいません。
                       </td>
                     </tr>
@@ -108,6 +110,7 @@ const AdminDashboardPage = () => {
                     <th>出勤</th>
                     <th>退勤</th>
                     <th className="text-end">休憩</th>
+                    <th className="text-end">実働</th>
                     <th className="text-end">勤務</th>
                     <th className="text-end">残業</th>
                   </tr>
@@ -115,7 +118,7 @@ const AdminDashboardPage = () => {
                 <tbody>
                   {completedEmployees.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="text-center text-muted py-4">
+                      <td colSpan={7} className="text-center text-muted py-4">
                         退勤済みの社員はいません。
                       </td>
                     </tr>
