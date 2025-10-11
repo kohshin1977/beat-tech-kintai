@@ -193,6 +193,46 @@ const EmployeeDashboardPage = () => {
 
   const handleWarningModalClose = () => setWarningModal({ show: false, message: '' })
 
+  const commitBreakSchedule = async (normalized, { auto = false } = {}) => {
+    if (!user?.uid || !breakScheduleModal.day) return
+    if (areBreakSchedulesEqual(normalized, breakScheduleModal.initialNormalized)) {
+      if (!auto) {
+        handleBreakScheduleModalClose()
+      }
+      return
+    }
+
+    setSavingBreakSchedule(true)
+    if (!auto) {
+      setError('')
+      setSuccess('')
+    }
+
+    const workDateKey = formatDateKey(breakScheduleModal.day)
+
+    try {
+      await updateBreakScheduleRange(user.uid, workDateKey, normalized)
+
+      setBreakScheduleModal((prev) => ({
+        ...prev,
+        values: buildBreakScheduleValues(normalized),
+        initialNormalized: normalized,
+      }))
+
+      setDefaultBreakSchedule({ periods: normalized, effectiveFrom: workDateKey })
+
+      if (!auto) {
+        const messageLabel = format(breakScheduleModal.day, 'yyyy/MM/dd')
+        setSuccess(`${messageLabel}以降の休憩時間が設定されました。`)
+        handleBreakScheduleModalClose()
+      }
+    } catch (updateError) {
+      setError(updateError.message)
+    } finally {
+      setSavingBreakSchedule(false)
+    }
+  }
+
   const getExistingTime = (timestampValue) => {
     const date = timestampToDate(timestampValue)
     return date ? format(date, 'HH:mm') : ''
@@ -411,12 +451,28 @@ const EmployeeDashboardPage = () => {
 
   const handleBreakScheduleFieldChange = (index, field, value) => {
     if (!['start', 'end'].includes(field)) return
+    let nextValues = []
     setBreakScheduleModal((prev) => {
-      const nextValues = prev.values.map((slot, slotIndex) =>
+      nextValues = prev.values.map((slot, slotIndex) =>
         slotIndex === index ? { ...slot, [field]: value } : slot,
       )
       return { ...prev, values: nextValues }
     })
+
+    if (field === 'end') {
+      const slot = nextValues[index]
+      const hasCompleteSlot =
+        slot?.start &&
+        slot?.end &&
+        isValidTimeToken(slot.start) &&
+        isValidTimeToken(slot.end) &&
+        timeTokenToMinutes(slot.end) > timeTokenToMinutes(slot.start)
+
+      if (!hasCompleteSlot || savingBreakSchedule) return
+
+      const normalized = normalizeBreakSchedule(nextValues)
+      commitBreakSchedule(normalized, { auto: true })
+    }
   }
 
   const validateBreakSchedule = (values) => {
@@ -451,29 +507,7 @@ const EmployeeDashboardPage = () => {
     }
 
     const normalized = normalizeBreakSchedule(breakScheduleModal.values)
-    if (areBreakSchedulesEqual(normalized, breakScheduleModal.initialNormalized)) {
-      handleBreakScheduleModalClose()
-      return
-    }
-
-    setSavingBreakSchedule(true)
-    setError('')
-    setSuccess('')
-    const workDateKey = formatDateKey(breakScheduleModal.day)
-
-    try {
-      await updateBreakScheduleRange(user.uid, workDateKey, normalized)
-
-      setDefaultBreakSchedule({ periods: normalized, effectiveFrom: workDateKey })
-
-      const messageLabel = format(breakScheduleModal.day, 'yyyy/MM/dd')
-      setSuccess(`${messageLabel}以降の休憩時間が設定されました。`)
-      handleBreakScheduleModalClose()
-    } catch (updateError) {
-      setError(updateError.message)
-    } finally {
-      setSavingBreakSchedule(false)
-    }
+    commitBreakSchedule(normalized)
   }
 
   const handleBreakModalClose = () => setBreakModal({ show: false, day: null, value: '' })
