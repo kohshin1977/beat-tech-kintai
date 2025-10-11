@@ -102,6 +102,47 @@ const resolveBreakMinutes = (breakMinutes, breakPeriods = []) => {
   return 0
 }
 
+const calculateOverlapFromPeriods = (startDate, endDate, breakPeriods = []) => {
+  if (!startDate || !endDate) return 0
+
+  return breakPeriods.reduce((total, period) => {
+    if (!period) return total
+    const breakStart = dateWithTimeToken(startDate, period.start)
+    const breakEnd = dateWithTimeToken(startDate, period.end)
+    if (!breakStart || !breakEnd) return total
+
+    const overlapStart = breakStart > startDate ? breakStart : startDate
+    const overlapEnd = breakEnd < endDate ? breakEnd : endDate
+    if (overlapEnd <= overlapStart) return total
+
+    return total + Math.max(differenceInMinutes(overlapEnd, overlapStart), 0)
+  }, 0)
+}
+
+export const calculateDeductibleBreakMinutes = (clockIn, clockOut, breakMinutes, breakPeriods) => {
+  const startDate = timestampToDate(clockIn)
+  const endDate = timestampToDate(clockOut)
+
+  if (!startDate || !endDate) {
+    return resolveBreakMinutes(breakMinutes, breakPeriods)
+  }
+
+  const spanMinutes = Math.max(differenceInMinutes(endDate, startDate), 0)
+  let deductedMinutes = 0
+
+  if (Array.isArray(breakPeriods) && breakPeriods.length > 0) {
+    deductedMinutes = calculateOverlapFromPeriods(startDate, endDate, breakPeriods)
+  } else {
+    deductedMinutes = resolveBreakMinutes(breakMinutes, breakPeriods)
+  }
+
+  if (!Number.isFinite(deductedMinutes)) {
+    return 0
+  }
+
+  return Math.min(Math.max(deductedMinutes, 0), spanMinutes)
+}
+
 export const calculateActualWorkMinutes = (clockIn, clockOut, breakMinutes, breakPeriods) => {
   const startDate = timestampToDate(clockIn)
   const endDate = timestampToDate(clockOut)
@@ -109,26 +150,9 @@ export const calculateActualWorkMinutes = (clockIn, clockOut, breakMinutes, brea
 
   const spanMinutes = Math.max(differenceInMinutes(endDate, startDate), 0)
 
-  let deductedMinutes = 0
+  const deductedMinutes = calculateDeductibleBreakMinutes(clockIn, clockOut, breakMinutes, breakPeriods)
 
-  if (Array.isArray(breakPeriods) && breakPeriods.length > 0) {
-    deductedMinutes = breakPeriods.reduce((total, period) => {
-      if (!period) return total
-      const breakStart = dateWithTimeToken(startDate, period.start)
-      const breakEnd = dateWithTimeToken(startDate, period.end)
-      if (!breakStart || !breakEnd) return total
-
-      const overlapStart = breakStart > startDate ? breakStart : startDate
-      const overlapEnd = breakEnd < endDate ? breakEnd : endDate
-      if (overlapEnd <= overlapStart) return total
-
-      return total + Math.max(differenceInMinutes(overlapEnd, overlapStart), 0)
-    }, 0)
-  } else {
-    deductedMinutes = resolveBreakMinutes(breakMinutes, breakPeriods)
-  }
-
-  return Math.max(spanMinutes - Math.min(deductedMinutes, spanMinutes), 0)
+  return Math.max(spanMinutes - deductedMinutes, 0)
 }
 
 export const formatActualWorkDuration = (clockIn, clockOut, breakMinutes, breakPeriods) => {

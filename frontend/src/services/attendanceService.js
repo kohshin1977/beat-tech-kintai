@@ -23,6 +23,7 @@ import {
   calculateDailyMinutes,
   calculateOvertimeMinutes,
   calculateBreakMinutesFromPeriods,
+  calculateDeductibleBreakMinutes,
   isValidTimeToken,
   timeTokenToMinutes,
 } from '../utils/time.js'
@@ -148,11 +149,21 @@ export const clockIn = async (userId, workDate, clockInTime) => {
   const workDescription = existingData?.workDescription ?? ''
   const clockOutTimestamp = existingData?.clockOut ?? null
 
+  let effectiveBreakMinutes = breakMinutes
+  if (clockOutTimestamp) {
+    effectiveBreakMinutes = calculateDeductibleBreakMinutes(
+      clockInTimestamp,
+      clockOutTimestamp,
+      breakMinutes,
+      breakPeriods,
+    )
+  }
+
   const payload = {
     userId,
     workDate,
     clockIn: clockInTimestamp,
-    breakMinutes,
+    breakMinutes: effectiveBreakMinutes,
     breakPeriods,
     workDescription,
     status: clockOutTimestamp ? 'completed' : 'working',
@@ -164,7 +175,11 @@ export const clockIn = async (userId, workDate, clockInTime) => {
   }
 
   if (clockOutTimestamp) {
-    const totalMinutes = calculateDailyMinutes(clockInTimestamp, clockOutTimestamp, breakMinutes)
+    const totalMinutes = calculateDailyMinutes(
+      clockInTimestamp,
+      clockOutTimestamp,
+      effectiveBreakMinutes,
+    )
     payload.totalMinutes = totalMinutes
     payload.overtimeMinutes = calculateOvertimeMinutes(totalMinutes, STANDARD_DAILY_MINUTES)
   } else {
@@ -199,7 +214,13 @@ export const clockOut = async (userId, workDate, clockOutTime) => {
     defaultBreakPeriods = await getDefaultBreakPeriods(userId, workDate)
   }
   const { breakPeriods, breakMinutes } = deriveBreakDetails(data, {}, { defaultBreakPeriods })
-  const totalMinutes = calculateDailyMinutes(data.clockIn, clockOutTimestamp, breakMinutes)
+  const effectiveBreakMinutes = calculateDeductibleBreakMinutes(
+    data.clockIn,
+    clockOutTimestamp,
+    breakMinutes,
+    breakPeriods,
+  )
+  const totalMinutes = calculateDailyMinutes(data.clockIn, clockOutTimestamp, effectiveBreakMinutes)
 
   if (totalMinutes < 0) {
     throw new Error('退勤時刻は出勤時刻より後の時間を入力してください。')
@@ -213,7 +234,7 @@ export const clockOut = async (userId, workDate, clockOutTime) => {
       userId,
       workDate,
       clockOut: clockOutTimestamp,
-      breakMinutes,
+      breakMinutes: effectiveBreakMinutes,
       breakPeriods,
       workDescription: data.workDescription ?? '',
       totalMinutes,
@@ -291,14 +312,21 @@ export const updateAttendanceDetails = async (userId, workDate, updates) => {
 
   let totalMinutes = data.totalMinutes ?? null
   let overtimeMinutes = data.overtimeMinutes ?? null
+  let effectiveBreakMinutes = breakMinutes
 
   if (data.clockIn && data.clockOut) {
-    totalMinutes = calculateDailyMinutes(data.clockIn, data.clockOut, breakMinutes)
+    effectiveBreakMinutes = calculateDeductibleBreakMinutes(
+      data.clockIn,
+      data.clockOut,
+      breakMinutes,
+      breakPeriods,
+    )
+    totalMinutes = calculateDailyMinutes(data.clockIn, data.clockOut, effectiveBreakMinutes)
     overtimeMinutes = calculateOvertimeMinutes(totalMinutes, STANDARD_DAILY_MINUTES)
   }
 
   await updateDoc(attendanceRef, {
-    breakMinutes,
+    breakMinutes: effectiveBreakMinutes,
     breakPeriods,
     workDescription,
     totalMinutes,
@@ -339,9 +367,16 @@ export const updateBreakScheduleRange = async (userId, startWorkDate, breakPerio
   const applyUpdate = (docRef, data = {}) => {
     let totalMinutes = data.totalMinutes ?? null
     let overtimeMinutes = data.overtimeMinutes ?? null
+    let effectiveBreakMinutes = breakMinutes
 
     if (data.clockIn && data.clockOut) {
-      totalMinutes = calculateDailyMinutes(data.clockIn, data.clockOut, breakMinutes)
+      effectiveBreakMinutes = calculateDeductibleBreakMinutes(
+        data.clockIn,
+        data.clockOut,
+        breakMinutes,
+        sanitizedPeriods,
+      )
+      totalMinutes = calculateDailyMinutes(data.clockIn, data.clockOut, effectiveBreakMinutes)
       overtimeMinutes = calculateOvertimeMinutes(totalMinutes, STANDARD_DAILY_MINUTES)
     }
 
@@ -351,7 +386,7 @@ export const updateBreakScheduleRange = async (userId, startWorkDate, breakPerio
         userId,
         workDate: docRef.id,
         breakPeriods: sanitizedPeriods,
-        breakMinutes,
+        breakMinutes: effectiveBreakMinutes,
         totalMinutes,
         overtimeMinutes,
         updatedAt: serverTimestamp(),
@@ -604,10 +639,12 @@ export const listenToDateRangeAttendance = (userId, startDate, endDate, callback
 export const calculateRealtimeTotals = (clockIn, breakMinutes = 0, breakPeriods = []) => {
   if (!clockIn) return { workMinutes: 0, overtimeMinutes: 0 }
   const now = Timestamp.fromDate(new Date())
-  const effectiveBreakMinutes =
-    Array.isArray(breakPeriods) && breakPeriods.length > 0
-      ? calculateBreakMinutesFromPeriods(breakPeriods)
-      : breakMinutes
+  const effectiveBreakMinutes = calculateDeductibleBreakMinutes(
+    clockIn,
+    now,
+    breakMinutes,
+    breakPeriods,
+  )
   const workMinutes = calculateDailyMinutes(clockIn, now, effectiveBreakMinutes)
   const overtimeMinutes = calculateOvertimeMinutes(workMinutes, STANDARD_DAILY_MINUTES)
   return { workMinutes, overtimeMinutes }
