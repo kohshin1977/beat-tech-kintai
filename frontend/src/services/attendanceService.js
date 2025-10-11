@@ -17,7 +17,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore'
-import { endOfMonth, format, parseISO, startOfMonth } from 'date-fns'
+import { eachDayOfInterval, endOfMonth, format, parseISO, startOfMonth } from 'date-fns'
 import { db } from '../firebase/config.js'
 import {
   calculateDailyMinutes,
@@ -316,13 +316,25 @@ export const updateBreakScheduleRange = async (userId, startWorkDate, breakPerio
 
   const sanitizedPeriods = sanitizeBreakPeriods(breakPeriodsInput)
   const breakMinutes = calculateBreakMinutesFromPeriods(sanitizedPeriods)
+  const startDate = parseISO(startWorkDate)
+  if (Number.isNaN(startDate.getTime())) {
+    throw new Error('休憩設定の開始日が不正です。')
+  }
+  const monthEndDate = endOfMonth(startDate)
+  const monthEndKey = format(monthEndDate, 'yyyy-MM-dd')
 
   const attendanceCol = collection(db, 'users', userId, 'attendance')
-  const attendanceQuery = query(attendanceCol, orderBy('workDate'), startAt(startWorkDate))
+  const attendanceQuery = query(
+    attendanceCol,
+    orderBy('workDate'),
+    startAt(startWorkDate),
+    endAt(monthEndKey),
+  )
   const snapshot = await getDocs(attendanceQuery)
 
   const batch = writeBatch(db)
   const affectedYearMonths = new Set()
+  const existingKeys = new Set(snapshot.docs.map((docSnap) => docSnap.id))
 
   const applyUpdate = (docRef, data = {}) => {
     let totalMinutes = data.totalMinutes ?? null
@@ -354,11 +366,15 @@ export const updateBreakScheduleRange = async (userId, startWorkDate, breakPerio
     applyUpdate(docSnap.ref, docSnap.data())
   })
 
-  const hasStartDoc = snapshot.docs.some((docSnap) => docSnap.id === startWorkDate)
-  if (!hasStartDoc) {
-    const startDocRef = doc(attendanceCol, startWorkDate)
-    applyUpdate(startDocRef, {})
-  }
+  const targetDays = eachDayOfInterval({ start: startDate, end: monthEndDate })
+  targetDays.forEach((day) => {
+    const dateKey = format(day, 'yyyy-MM-dd')
+    if (dateKey < startWorkDate) return
+    if (existingKeys.has(dateKey)) return
+    const targetRef = doc(attendanceCol, dateKey)
+    applyUpdate(targetRef, {})
+    existingKeys.add(dateKey)
+  })
 
   await batch.commit()
 
