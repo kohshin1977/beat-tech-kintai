@@ -114,6 +114,7 @@ const EmployeeDashboardPage = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [defaultBreakSchedule, setDefaultBreakSchedule] = useState({ periods: [], effectiveFrom: null })
+  const [warningModal, setWarningModal] = useState({ show: false, message: '' })
 
   const toInputValue = (value) => {
     const date = timestampToDate(value)
@@ -158,6 +159,40 @@ const EmployeeDashboardPage = () => {
     }
   }, [user?.uid])
 
+  const recordsByDate = useMemo(() => {
+    const map = {}
+    monthlyRecords.forEach((record) => {
+      if (record?.workDate) {
+        map[record.workDate] = record
+      }
+    })
+    return map
+  }, [monthlyRecords])
+
+  const warnIfBreakSettingMissing = (dateKey) => {
+    if (!dateKey) return
+
+    const record = recordsByDate[dateKey]
+    const hasBreakConfigured =
+      (record?.breakPeriods?.length ?? 0) > 0 || (record?.breakMinutes ?? 0) > 0
+
+    if (hasBreakConfigured) return
+
+    const effectiveFrom = defaultBreakSchedule.effectiveFrom ?? ''
+    const targetMonth = dateKey.slice(0, 7)
+    const hasDefaultForMonth =
+      defaultBreakSchedule.periods.length > 0 &&
+      effectiveFrom &&
+      effectiveFrom.slice(0, 7) === targetMonth &&
+      effectiveFrom <= dateKey
+
+    if (!hasDefaultForMonth) {
+      setWarningModal({ show: true, message: '休憩設定が入力されていません。' })
+    }
+  }
+
+  const handleWarningModalClose = () => setWarningModal({ show: false, message: '' })
+
   const getExistingTime = (timestampValue) => {
     const date = timestampToDate(timestampValue)
     return date ? format(date, 'HH:mm') : ''
@@ -181,6 +216,7 @@ const EmployeeDashboardPage = () => {
       } else {
         await clockIn(user.uid, workDate, nextValue)
         setSuccess(`出勤時刻を保存しました (${format(selectedDate, 'M月d日')})。`)
+        warnIfBreakSettingMissing(workDate)
       }
     } catch (e) {
       setError(e.message)
@@ -207,6 +243,7 @@ const EmployeeDashboardPage = () => {
       } else {
         await clockOut(user.uid, workDate, nextValue)
         setSuccess(`退勤時刻を保存しました (${format(selectedDate, 'M月d日')})。`)
+        warnIfBreakSettingMissing(workDate)
       }
     } catch (e) {
       setError(e.message)
@@ -216,16 +253,6 @@ const EmployeeDashboardPage = () => {
   }
 
   const hasClockIn = Boolean(attendanceRecord?.clockIn || clockInInput)
-
-  const recordsByDate = useMemo(() => {
-    const map = {}
-    monthlyRecords.forEach((record) => {
-      if (record?.workDate) {
-        map[record.workDate] = record
-      }
-    })
-    return map
-  }, [monthlyRecords])
 
   const breakScheduleHistory = useMemo(() => {
     return monthlyRecords
@@ -784,6 +811,18 @@ const EmployeeDashboardPage = () => {
           </Button>
           <Button variant="primary" onClick={handleDescriptionModalSave} disabled={savingDescription}>
             {savingDescription ? '保存中…' : '保存'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={warningModal.show} onHide={handleWarningModalClose} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>警告</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>{warningModal.message}</Modal.Body>
+        <Modal.Footer>
+          <Button variant="primary" onClick={handleWarningModalClose}>
+            OK
           </Button>
         </Modal.Footer>
       </Modal>
