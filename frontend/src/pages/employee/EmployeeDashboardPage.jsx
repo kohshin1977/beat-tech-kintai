@@ -29,6 +29,7 @@ import {
   timestampToDate,
   isValidTimeToken,
   timeTokenToMinutes,
+  minutesToHourMinute,
 } from '../../utils/time.js'
 
 const VIEW_MODES = {
@@ -615,7 +616,7 @@ const EmployeeDashboardPage = () => {
                     <th>日付</th>
                     <th>出勤</th>
                     <th>退勤</th>
-                    <th>休憩(分)</th>
+                    <th>休憩</th>
                     <th>実働時間</th>
                     <th>勤務内容</th>
                   </tr>
@@ -650,7 +651,7 @@ const EmployeeDashboardPage = () => {
                           onClick={() => handleListCellAction(day, 'break')}
                           className="text-primary"
                         >
-                          {record?.breakMinutes ?? '-'}
+                          {minutesToHourMinute(record?.breakMinutes)}
                         </td>
                         <td className="text-end">
                           {formatActualWorkDuration(

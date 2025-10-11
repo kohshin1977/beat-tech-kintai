@@ -1,6 +1,10 @@
 import { Badge, Card, Col, Row, Table } from 'react-bootstrap'
 import useAdminDashboard from '../../hooks/useAdminDashboard.js'
-import { minutesToDuration, formatActualWorkDuration } from '../../utils/time.js'
+import {
+  minutesToDuration,
+  formatActualWorkDuration,
+  minutesToHourMinute,
+} from '../../utils/time.js'
 
 const AdminDashboardPage = () => {
   const { stats, workingEmployees, completedEmployees, notStartedEmployees, overtimeEmployees } =
@@ -14,7 +18,7 @@ const AdminDashboardPage = () => {
       </td>
       <td>{item.clockInLabel ?? '--:--'}</td>
       <td>{item.clockOutLabel ?? '--:--'}</td>
-      <td className="text-end">{item.breakMinutes}</td>
+      <td className="text-end">{minutesToHourMinute(item.breakMinutes)}</td>
       <td className="text-end">
         {formatActualWorkDuration(item.clockIn, item.clockOut, item.breakMinutes, item.breakPeriods)}
       </td>

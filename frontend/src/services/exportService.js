@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
-import { minutesToDuration } from '../utils/time.js'
+import { minutesToDuration, minutesToHourMinute } from '../utils/time.js'
 
 const buildMonthlySummarySheet = (summaries) => {
   const header = ['社員名', '部署', '勤務時間合計', '残業時間合計']
@@ -15,12 +15,12 @@ const buildMonthlySummarySheet = (summaries) => {
 }
 
 const buildDailySheet = (records) => {
-  const header = ['日付', '出勤', '退勤', '休憩(分)', '勤務時間', '残業時間', '勤務内容']
+  const header = ['日付', '出勤', '退勤', '休憩', '勤務時間', '残業時間', '勤務内容']
   const rows = records.map((record) => [
     record.workDate,
     record.clockInLabel,
     record.clockOutLabel,
-    record.breakMinutes ?? 0,
+    minutesToHourMinute(record.breakMinutes),
     minutesToDuration(record.totalMinutes),
     minutesToDuration(record.overtimeMinutes),
     record.workDescription ?? '',
@@ -65,7 +65,7 @@ export const downloadWorkbook = (workbook, filename) => {
 }
 
 export const buildCsvContent = (records) => {
-  const header = ['社員ID', '社員名', '部署', '日付', '出勤', '退勤', '休憩(分)', '勤務時間(分)', '残業時間(分)', '勤務内容']
+  const header = ['社員ID', '社員名', '部署', '日付', '出勤', '退勤', '休憩', '勤務時間(分)', '残業時間(分)', '勤務内容']
   const rows = records.map((item) => [
     item.userId,
     item.name,
@@ -73,7 +73,7 @@ export const buildCsvContent = (records) => {
     item.workDate,
     item.clockInLabel ?? item.clockIn,
     item.clockOutLabel ?? item.clockOut,
-    item.breakMinutes ?? 0,
+    minutesToHourMinute(item.breakMinutes),
     item.totalMinutes ?? 0,
     item.overtimeMinutes ?? 0,
     item.workDescription ?? '',

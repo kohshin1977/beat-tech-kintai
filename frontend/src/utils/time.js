@@ -76,6 +76,15 @@ export const minutesToTimeLabel = (minutes) => {
   return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
 }
 
+export const minutesToHourMinute = (minutes) => {
+  if (minutes === null || minutes === undefined) return '-'
+  if (!Number.isFinite(minutes)) return '-'
+  const safeMinutes = Math.max(Math.floor(minutes), 0)
+  const hours = Math.floor(safeMinutes / 60)
+  const mins = safeMinutes % 60
+  return `${hours}:${mins.toString().padStart(2, '0')}`
+}
+
 const dateWithTimeToken = (baseDate, token) => {
   if (!baseDate || !isValidTimeToken(token)) return null
   const result = new Date(baseDate)

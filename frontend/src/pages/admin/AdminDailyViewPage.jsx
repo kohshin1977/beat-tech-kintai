@@ -3,7 +3,12 @@ import { Card, Form, Table } from 'react-bootstrap'
 import { format } from 'date-fns'
 import { listenToTodayStatuses } from '../../services/attendanceService.js'
 import { listenToEmployees } from '../../services/userService.js'
-import { formatTime, minutesToDuration, formatActualWorkDuration } from '../../utils/time.js'
+import {
+  formatTime,
+  minutesToDuration,
+  formatActualWorkDuration,
+  minutesToHourMinute,
+} from '../../utils/time.js'
 
 const AdminDailyViewPage = () => {
   const [selectedDate, setSelectedDate] = useState(() => format(new Date(), 'yyyy-MM-dd'))
@@ -110,7 +115,7 @@ const AdminDailyViewPage = () => {
                 <th>部署</th>
                 <th>出勤</th>
                 <th>退勤</th>
-                <th className="text-end">休憩(分)</th>
+                <th className="text-end">休憩</th>
                 <th className="text-end">実働時間</th>
                 <th className="text-end">勤務時間</th>
                 <th className="text-end">残業時間</th>
@@ -131,7 +136,7 @@ const AdminDailyViewPage = () => {
                   <td>{row.department}</td>
                   <td>{formatTime(row.clockIn)}</td>
                   <td>{formatTime(row.clockOut)}</td>
-                  <td className="text-end">{row.breakMinutes}</td>
+                  <td className="text-end">{minutesToHourMinute(row.breakMinutes)}</td>
                   <td className="text-end">
                     {formatActualWorkDuration(
                       row.clockIn,
