@@ -557,7 +557,6 @@ const EmployeeDashboardPage = () => {
                     <th>休憩(分)</th>
                     <th>実働時間</th>
                     <th>勤務内容</th>
-                    <th>休憩設定</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -609,18 +608,6 @@ const EmployeeDashboardPage = () => {
                           <span className="d-inline-block text-truncate" style={{ maxWidth: 220 }}>
                             {record?.workDescription ?? '-'}
                           </span>
-                        </td>
-                        <td>
-                          <Button
-                            variant="outline-secondary"
-                            size="sm"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              handleOpenBreakScheduleModal(day)
-                            }}
-                          >
-                            設定
-                          </Button>
                         </td>
                       </tr>
                     )
