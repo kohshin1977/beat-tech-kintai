@@ -9,6 +9,7 @@ import {
   formatTime,
   minutesToHourMinute,
 } from '../../utils/time.js'
+import { resolveDisplayBreakMinutes } from '../../utils/attendance.js'
 
 const EmployeeMonthlySummaryPage = () => {
   const { user } = useAuth()
@@ -108,25 +109,28 @@ const EmployeeMonthlySummaryPage = () => {
                   </td>
                 </tr>
               )}
-              {monthlyRecords.map((record) => (
-                <tr key={record.workDate}>
-                  <td>{record.workDate}</td>
-                  <td>{formatTime(record.clockIn)}</td>
-                  <td>{formatTime(record.clockOut)}</td>
-                  <td className="text-end">{minutesToHourMinute(record.breakMinutes)}</td>
-                  <td className="text-end">
-                    {formatActualWorkDuration(
-                      record.clockIn,
-                      record.clockOut,
-                      record.breakMinutes,
-                      record.breakPeriods,
-                    )}
-                  </td>
-                  <td className="text-end">{minutesToDuration(record.totalMinutes ?? 0)}</td>
-                  <td className="text-end">{minutesToDuration(record.overtimeMinutes ?? 0)}</td>
-                  <td>{record.workDescription}</td>
-                </tr>
-              ))}
+              {monthlyRecords.map((record) => {
+                const displayBreakMinutes = resolveDisplayBreakMinutes(record.workDate, record)
+                return (
+                  <tr key={record.workDate}>
+                    <td>{record.workDate}</td>
+                    <td>{formatTime(record.clockIn)}</td>
+                    <td>{formatTime(record.clockOut)}</td>
+                    <td className="text-end">{minutesToHourMinute(displayBreakMinutes)}</td>
+                    <td className="text-end">
+                      {formatActualWorkDuration(
+                        record.clockIn,
+                        record.clockOut,
+                        displayBreakMinutes,
+                        record.breakPeriods,
+                      )}
+                    </td>
+                    <td className="text-end">{minutesToDuration(record.totalMinutes ?? 0)}</td>
+                    <td className="text-end">{minutesToDuration(record.overtimeMinutes ?? 0)}</td>
+                    <td>{record.workDescription}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </Table>
         </Card.Body>

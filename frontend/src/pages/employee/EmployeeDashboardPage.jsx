@@ -15,6 +15,7 @@ import ClockTimePicker from '../../components/common/ClockTimePicker.jsx'
 import useEmployeeAttendance from '../../hooks/useEmployeeAttendance.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { getUserProfile } from '../../services/userService.js'
+import { resolveDisplayBreakMinutes } from '../../utils/attendance.js'
 import {
   clockIn,
   clockOut,
@@ -626,6 +627,7 @@ const EmployeeDashboardPage = () => {
                     const key = format(day, 'yyyy-MM-dd')
                     const record = recordsByDate[key]
                     const isSelected = isSameDay(day, selectedDate)
+                    const displayBreakMinutes = resolveDisplayBreakMinutes(day, record)
 
                     return (
                       <tr key={key} className={isSelected ? 'table-primary' : ''}>
@@ -651,13 +653,13 @@ const EmployeeDashboardPage = () => {
                           onClick={() => handleListCellAction(day, 'break')}
                           className="text-primary"
                         >
-                          {minutesToHourMinute(record?.breakMinutes)}
+                          {minutesToHourMinute(displayBreakMinutes)}
                         </td>
                         <td className="text-end">
                           {formatActualWorkDuration(
                             record?.clockIn,
                             record?.clockOut,
-                            record?.breakMinutes,
+                            displayBreakMinutes,
                             record?.breakPeriods,
                           )}
                         </td>

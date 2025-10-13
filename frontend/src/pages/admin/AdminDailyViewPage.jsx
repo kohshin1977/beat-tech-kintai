@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Card, Form, Table } from 'react-bootstrap'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { listenToTodayStatuses } from '../../services/attendanceService.js'
 import { listenToEmployees } from '../../services/userService.js'
 import {
@@ -9,6 +9,7 @@ import {
   formatActualWorkDuration,
   minutesToHourMinute,
 } from '../../utils/time.js'
+import { resolveDisplayBreakMinutes } from '../../utils/attendance.js'
 
 const AdminDailyViewPage = () => {
   const [selectedDate, setSelectedDate] = useState(() => format(new Date(), 'yyyy-MM-dd'))
@@ -24,6 +25,8 @@ const AdminDailyViewPage = () => {
     const stopAttendance = listenToTodayStatuses(selectedDate, (rows) => setAttendanceRows(rows))
     return () => stopAttendance?.()
   }, [selectedDate])
+
+  const selectedDateValue = useMemo(() => parseISO(selectedDate), [selectedDate])
 
   const mergedRows = useMemo(() => {
     const recordMap = new Map(attendanceRows.map((item) => [item.userId, item]))
@@ -130,26 +133,29 @@ const AdminDailyViewPage = () => {
                   </td>
                 </tr>
               )}
-              {mergedRows.map((row) => (
-                <tr key={row.userId}>
-                  <td>{row.name}</td>
-                  <td>{row.department}</td>
-                  <td>{formatTime(row.clockIn)}</td>
-                  <td>{formatTime(row.clockOut)}</td>
-                  <td className="text-end">{minutesToHourMinute(row.breakMinutes)}</td>
-                  <td className="text-end">
-                    {formatActualWorkDuration(
-                      row.clockIn,
-                      row.clockOut,
-                      row.breakMinutes,
-                      row.breakPeriods,
-                    )}
-                  </td>
-                  <td className="text-end">{minutesToDuration(row.totalMinutes)}</td>
-                  <td className="text-end">{minutesToDuration(row.overtimeMinutes)}</td>
-                  <td>{row.workDescription}</td>
-                </tr>
-              ))}
+              {mergedRows.map((row) => {
+                const displayBreakMinutes = resolveDisplayBreakMinutes(selectedDateValue, row)
+                return (
+                  <tr key={row.userId}>
+                    <td>{row.name}</td>
+                    <td>{row.department}</td>
+                    <td>{formatTime(row.clockIn)}</td>
+                    <td>{formatTime(row.clockOut)}</td>
+                    <td className="text-end">{minutesToHourMinute(displayBreakMinutes)}</td>
+                    <td className="text-end">
+                      {formatActualWorkDuration(
+                        row.clockIn,
+                        row.clockOut,
+                        displayBreakMinutes,
+                        row.breakPeriods,
+                      )}
+                    </td>
+                    <td className="text-end">{minutesToDuration(row.totalMinutes)}</td>
+                    <td className="text-end">{minutesToDuration(row.overtimeMinutes)}</td>
+                    <td>{row.workDescription}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </Table>
         </Card.Body>
