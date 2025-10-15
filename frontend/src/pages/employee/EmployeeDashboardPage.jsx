@@ -16,6 +16,7 @@ import useEmployeeAttendance from '../../hooks/useEmployeeAttendance.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { getUserProfile } from '../../services/userService.js'
 import { resolveDisplayBreakMinutes } from '../../utils/attendance.js'
+import { isNonWorkingDay } from '../../utils/workday.js'
 import {
   clockIn,
   clockOut,
@@ -627,11 +628,20 @@ const EmployeeDashboardPage = () => {
                     const key = format(day, 'yyyy-MM-dd')
                     const record = recordsByDate[key]
                     const isSelected = isSameDay(day, selectedDate)
+                    const isNonWorking = isNonWorkingDay(day)
                     const displayBreakMinutes = resolveDisplayBreakMinutes(day, record)
 
+                const rowClasses = [isSelected ? 'table-primary' : '', !isSelected && isNonWorking ? 'bg-light-warning-subtle' : '']
+                  .filter(Boolean)
+                  .join(' ')
+
                     return (
-                      <tr key={key} className={isSelected ? 'table-primary' : ''}>
-                        <td role="button" onClick={() => handleListCellAction(day, 'date')}>
+                      <tr key={key} className={rowClasses}>
+                        <td
+                          role="button"
+                          onClick={() => handleListCellAction(day, 'date')}
+                          className={isNonWorking ? 'text-warning' : ''}
+                        >
                           {formatWithLocale(day, 'd日(E)')}
                         </td>
                         <td
@@ -711,10 +721,18 @@ const EmployeeDashboardPage = () => {
                   {monthDays.map((day) => {
                     const key = format(day, 'yyyy-MM-dd')
                     const isSelected = isSameDay(day, selectedDate)
+                    const isNonWorking = isNonWorkingDay(day)
+                    const rowClasses = [isSelected ? 'table-primary' : '', !isSelected && isNonWorking ? 'bg-light-warning-subtle' : '']
+                      .filter(Boolean)
+                      .join(' ')
 
                     return (
-                      <tr key={key} className={isSelected ? 'table-primary' : ''}>
-                        <td role="button" onClick={() => handleSelectDate(day)}>
+                      <tr key={key} className={rowClasses}>
+                        <td
+                          role="button"
+                          onClick={() => handleSelectDate(day)}
+                          className={isNonWorking ? 'text-warning' : ''}
+                        >
                           {formatWithLocale(day, 'd日(E)')}
                         </td>
                         <td>
