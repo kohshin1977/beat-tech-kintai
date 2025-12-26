@@ -337,3 +337,7 @@ ToDo
 [User] ="9:00"と出力するようにしてもらえますか
 
 [Assistant] CSV出力の出勤/退勤/休憩は ="9:00" 形式で出力するように変更しました。対象は frontend/src/services/exportService.js です。
+
+[User] やっぱり9:00の形式に戻して下さい
+
+[Assistant] CSV出力の時刻を9:00の形式に戻しました。対象は frontend/src/services/exportService.js です。

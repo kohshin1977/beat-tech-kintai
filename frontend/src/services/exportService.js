@@ -98,10 +98,7 @@ export const buildEmployeeMonthlyCsvContent = (records, options = {}) => {
   const startCol = Number.isInteger(options.startCol) ? options.startCol : 7
   const prefix = ','.repeat(Math.max(startCol - 1, 0))
   const lines = []
-  const asText = (value) => {
-    if (!value) return ''
-    return `="${String(value).replace(/"/g, '""')}"`
-  }
+  const asText = (value) => (value ? String(value) : '')
 
   for (let i = 0; i < Math.max(startRow - 1, 0); i += 1) {
     lines.push(prefix)
