@@ -64,6 +64,15 @@ export const downloadWorkbook = (workbook, filename) => {
   saveAs(blob, filename)
 }
 
+const escapeCsvValue = (value) => {
+  if (value === null || value === undefined) return ''
+  const stringValue = String(value)
+  if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+    return `"${stringValue.replace(/"/g, '""')}"`
+  }
+  return stringValue
+}
+
 export const buildCsvContent = (records) => {
   const header = ['社員ID', '社員名', '部署', '日付', '出勤', '退勤', '休憩', '勤務時間(分)', '残業時間(分)', '勤務内容']
   const rows = records.map((item) => [
@@ -80,19 +89,24 @@ export const buildCsvContent = (records) => {
   ])
 
   return [header, ...rows]
-    .map((columns) =>
-      columns
-        .map((value) => {
-          if (value === null || value === undefined) return ''
-          const stringValue = String(value)
-          if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-            return `"${stringValue.replace(/"/g, '""')}"`
-          }
-          return stringValue
-        })
-        .join(','),
-    )
+    .map((columns) => columns.map(escapeCsvValue).join(','))
     .join('\n')
+}
+
+export const buildEmployeeMonthlyCsvContent = (records) => {
+  const header = ['日付', '出勤', '退勤', '休憩', '実働時間', '勤務時間', '残業時間', '勤務内容']
+  const rows = records.map((item) => [
+    item.workDate,
+    item.clockInLabel ?? item.clockIn ?? '--:--',
+    item.clockOutLabel ?? item.clockOut ?? '--:--',
+    item.breakLabel ?? '-',
+    item.actualWorkLabel ?? '--:--',
+    item.totalLabel ?? '-',
+    item.overtimeLabel ?? '-',
+    item.workDescription ?? '',
+  ])
+
+  return [header, ...rows].map((columns) => columns.map(escapeCsvValue).join(',')).join('\n')
 }
 
 export const downloadCsv = (csv, filename) => {

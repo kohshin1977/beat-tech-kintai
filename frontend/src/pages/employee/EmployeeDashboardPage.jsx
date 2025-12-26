@@ -32,7 +32,9 @@ import {
   isValidTimeToken,
   timeTokenToMinutes,
   minutesToHourMinute,
+  minutesToDuration,
 } from '../../utils/time.js'
+import { buildEmployeeMonthlyCsvContent, downloadCsv } from '../../services/exportService.js'
 
 const VIEW_MODES = {
   LIST: 'list',
@@ -116,6 +118,7 @@ const EmployeeDashboardPage = () => {
   const [savingBreakSchedule, setSavingBreakSchedule] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [exportingCsv, setExportingCsv] = useState(false)
   const [defaultBreakSchedule, setDefaultBreakSchedule] = useState({ periods: [], effectiveFrom: null })
   const [warningModal, setWarningModal] = useState({ show: false, message: '' })
 
@@ -195,6 +198,50 @@ const EmployeeDashboardPage = () => {
   }
 
   const handleWarningModalClose = () => setWarningModal({ show: false, message: '' })
+
+  const handleCsvExport = () => {
+    if (exportingCsv) return
+    setExportingCsv(true)
+    setError('')
+    setSuccess('')
+    try {
+      const rows = monthDays.map((day) => {
+        const key = format(day, 'yyyy-MM-dd')
+        const record = recordsByDate[key]
+        const displayBreakMinutes = resolveDisplayBreakMinutes(day, record)
+        return {
+          workDate: key,
+          clockInLabel: formatTime(record?.clockIn),
+          clockOutLabel: formatTime(record?.clockOut),
+          breakLabel: minutesToHourMinute(displayBreakMinutes),
+          actualWorkLabel: formatActualWorkDuration(
+            record?.clockIn,
+            record?.clockOut,
+            displayBreakMinutes,
+            record?.breakPeriods,
+          ),
+          totalLabel:
+            record?.totalMinutes === null || record?.totalMinutes === undefined
+              ? '-'
+              : minutesToDuration(record.totalMinutes),
+          overtimeLabel:
+            record?.overtimeMinutes === null || record?.overtimeMinutes === undefined
+              ? '-'
+              : minutesToDuration(record.overtimeMinutes),
+          workDescription: record?.workDescription ?? '',
+        }
+      })
+      const csv = buildEmployeeMonthlyCsvContent(rows)
+      const monthKey = format(calendarMonth, 'yyyy-MM')
+      downloadCsv(csv, `勤怠_${monthKey}.csv`)
+      setSuccess('CSVファイルを生成しました。')
+    } catch (exportError) {
+      console.error('CSV export failed', exportError)
+      setError('CSV出力中にエラーが発生しました。')
+    } finally {
+      setExportingCsv(false)
+    }
+  }
 
   const commitBreakSchedule = async (normalized, { auto = false } = {}) => {
     if (!user?.uid || !breakScheduleModal.day) return
@@ -609,6 +656,16 @@ const EmployeeDashboardPage = () => {
                 </Button>
               </div>
               <div className="text-muted small">選択中: {selectedDateLabel}</div>
+            </div>
+            <div className="d-flex justify-content-end mb-3">
+              <Button
+                variant="outline-primary"
+                size="sm"
+                onClick={handleCsvExport}
+                disabled={exportingCsv}
+              >
+                CSV出力
+              </Button>
             </div>
 
             <div className="table-responsive">
