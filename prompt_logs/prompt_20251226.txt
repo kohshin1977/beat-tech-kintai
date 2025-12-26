@@ -341,3 +341,7 @@ ToDo
 [User] やっぱり9:00の形式に戻して下さい
 
 [Assistant] CSV出力の時刻を9:00の形式に戻しました。対象は frontend/src/services/exportService.js です。
+
+[User] 勤務内容入力画面で最近の入力というボタンを表示して直近５日間の勤務内容を選択してコピーできるようにして下さい
+
+[Assistant] 勤務内容入力モーダルに「最近の入力」ボタンを追加し、直近5日分の勤務内容を選択してコピーできるモーダルを追加しました。対象は frontend/src/pages/employee/EmployeeDashboardPage.jsx です。

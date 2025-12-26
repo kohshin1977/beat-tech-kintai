@@ -7,6 +7,7 @@ import {
   format,
   isSameDay,
   isSameMonth,
+  parseISO,
   startOfMonth,
 } from 'date-fns'
 import { ja } from 'date-fns/locale'
@@ -120,6 +121,7 @@ const EmployeeDashboardPage = () => {
   const [exportingCsv, setExportingCsv] = useState(false)
   const [defaultBreakSchedule, setDefaultBreakSchedule] = useState({ periods: [], effectiveFrom: null })
   const [warningModal, setWarningModal] = useState({ show: false, message: '' })
+  const [recentDescriptionModal, setRecentDescriptionModal] = useState(false)
 
   const toInputValue = (value) => {
     const date = timestampToDate(value)
@@ -197,6 +199,17 @@ const EmployeeDashboardPage = () => {
   }
 
   const handleWarningModalClose = () => setWarningModal({ show: false, message: '' })
+
+  const recentDescriptions = useMemo(() => {
+    return monthlyRecords
+      .filter((record) => record?.workDescription?.trim())
+      .sort((a, b) => (a.workDate < b.workDate ? 1 : -1))
+      .slice(0, 5)
+      .map((record) => ({
+        dateLabel: formatWithLocale(parseISO(record.workDate), 'M月d日(E)'),
+        workDescription: record.workDescription.trim(),
+      }))
+  }, [monthlyRecords])
 
   const formatCsvTime = (value) => {
     const label = formatTime(value)
@@ -890,6 +903,16 @@ const EmployeeDashboardPage = () => {
           <Modal.Title>{formatWithLocale(descriptionModal.day ?? selectedDate, 'M月d日(E)')}の勤務内容</Modal.Title>
         </Modal.Header>
         <Modal.Body>
+          <div className="d-flex justify-content-end mb-3">
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={() => setRecentDescriptionModal(true)}
+              disabled={recentDescriptions.length === 0}
+            >
+              最近の入力
+            </Button>
+          </div>
           <Form.Group controlId="workDescriptionModal">
             <Form.Label>勤務内容</Form.Label>
             <Form.Control
@@ -925,6 +948,39 @@ const EmployeeDashboardPage = () => {
         <Modal.Footer>
           <Button variant="primary" onClick={handleWarningModalClose}>
             OK
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={recentDescriptionModal} onHide={() => setRecentDescriptionModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>最近の勤務内容</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {recentDescriptions.length === 0 ? (
+            <p className="text-muted mb-0">最近の勤務内容がありません。</p>
+          ) : (
+            <div className="d-flex flex-column gap-2">
+              {recentDescriptions.map((item, index) => (
+                <Button
+                  key={`${item.dateLabel}-${index}`}
+                  variant="outline-primary"
+                  className="text-start"
+                  onClick={() => {
+                    setDescriptionModal((prev) => ({ ...prev, value: item.workDescription }))
+                    setRecentDescriptionModal(false)
+                  }}
+                >
+                  <div className="fw-semibold">{item.dateLabel}</div>
+                  <div className="small text-muted text-truncate">{item.workDescription}</div>
+                </Button>
+              ))}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={() => setRecentDescriptionModal(false)}>
+            閉じる
           </Button>
         </Modal.Footer>
       </Modal>
