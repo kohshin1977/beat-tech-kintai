@@ -98,13 +98,21 @@ export const buildEmployeeMonthlyCsvContent = (records, options = {}) => {
   const startCol = Number.isInteger(options.startCol) ? options.startCol : 7
   const prefix = ','.repeat(Math.max(startCol - 1, 0))
   const lines = []
+  const asText = (value) => {
+    if (!value) return ''
+    return `="${String(value).replace(/"/g, '""')}"`
+  }
 
   for (let i = 0; i < Math.max(startRow - 1, 0); i += 1) {
     lines.push(prefix)
   }
 
   records.forEach((item) => {
-    const values = [item.clockInLabel ?? '', item.clockOutLabel ?? '', item.breakLabel ?? '']
+    const values = [
+      asText(item.clockInLabel ?? ''),
+      asText(item.clockOutLabel ?? ''),
+      asText(item.breakLabel ?? ''),
+    ]
     const hasValues = values.some((value) => value !== '')
     if (!hasValues) {
       lines.push(prefix)

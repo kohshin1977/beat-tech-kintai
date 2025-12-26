@@ -317,3 +317,23 @@ ToDo
 [User] 09:00なら9:00にするようにcsvを出力するようにできますか
 
 [Assistant] CSV出力の出勤/退勤時刻で先頭ゼロを外すようにしました。formatCsvTimeで'09:00'を'9:00'に正規化し、CSV出力に反映しています。対象は frontend/src/pages/employee/EmployeeDashboardPage.jsx です。
+
+[User] csvだとExcelでうまく取り込めないのでJSONで出力するようにできますか
+
+[Assistant] 可能です。確認ですが、JSONの出力形式は今のCSVと同じく『先頭14行空行・9列目開始相当の月次データ』を表現する形ではなく、日付ごとの配列（例: [{ date, clockIn, clockOut, break } ...]）でよいですか？また、出力場所は現在のCSVボタンを「JSON出力」に置き換える形でよいですか？
+
+[User] 文字列固定'でcsvを出力することはできますか
+
+[Assistant] CSVの出勤/退勤/休憩の値に先頭アポストロフィを付け、Excelで文字列として取り込まれるようにしました。対象は frontend/src/services/exportService.js です。
+
+[User] 時刻を"9:00"とダブルクオーテーションで囲って出力して下さい
+
+[Assistant] CSV出力の出勤/退勤/休憩を常にダブルクオーテーションで囲むように変更しました。対象は frontend/src/services/exportService.js です。
+
+[User] ""ではなく先頭に'をつける方法に変えてもらえますか
+
+[Assistant] CSV出力の出勤/退勤/休憩は先頭アポストロフィ方式に戻しました。対象は frontend/src/services/exportService.js です。
+
+[User] ="9:00"と出力するようにしてもらえますか
+
+[Assistant] CSV出力の出勤/退勤/休憩は ="9:00" 形式で出力するように変更しました。対象は frontend/src/services/exportService.js です。
