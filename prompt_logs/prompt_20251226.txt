@@ -225,3 +225,7 @@ ToDo
 [User] すみません。列を追加するのではなく前の月、2025年12月、次の月などを表示している下に表示して下さい
 
 [Assistant] CSVボタンを表の列ではなく、月切り替え（前の月/当月/次の月）の下に表示するように移動しました。対象は frontend/src/pages/employee/EmployeeDashboardPage.jsx です。
+
+[User] いいですね。CSV出力ボタンを選択中：⚪︎月⚪︎日と同じ行にできますか
+
+[Assistant] CSV出力ボタンを「選択中: 月日」と同じ行に移動しました。対象は frontend/src/pages/employee/EmployeeDashboardPage.jsx です。

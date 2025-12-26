@@ -655,17 +655,17 @@ const EmployeeDashboardPage = () => {
                   次の月
                 </Button>
               </div>
-              <div className="text-muted small">選択中: {selectedDateLabel}</div>
-            </div>
-            <div className="d-flex justify-content-end mb-3">
-              <Button
-                variant="outline-primary"
-                size="sm"
-                onClick={handleCsvExport}
-                disabled={exportingCsv}
-              >
-                CSV出力
-              </Button>
+              <div className="d-flex align-items-center gap-2">
+                <div className="text-muted small">選択中: {selectedDateLabel}</div>
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={handleCsvExport}
+                  disabled={exportingCsv}
+                >
+                  CSV出力
+                </Button>
+              </div>
             </div>
 
             <div className="table-responsive">
