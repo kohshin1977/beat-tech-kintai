@@ -655,13 +655,14 @@ const EmployeeDashboardPage = () => {
                   次の月
                 </Button>
               </div>
-              <div className="d-flex align-items-center gap-2">
+              <div className="d-flex align-items-center gap-2 flex-grow-1">
                 <div className="text-muted small">選択中: {selectedDateLabel}</div>
                 <Button
                   variant="outline-primary"
                   size="sm"
                   onClick={handleCsvExport}
                   disabled={exportingCsv}
+                  className="ms-auto"
                 >
                   CSV出力
                 </Button>

@@ -229,3 +229,7 @@ ToDo
 [User] いいですね。CSV出力ボタンを選択中：⚪︎月⚪︎日と同じ行にできますか
 
 [Assistant] CSV出力ボタンを「選択中: 月日」と同じ行に移動しました。対象は frontend/src/pages/employee/EmployeeDashboardPage.jsx です。
+
+[User] いいですね。CSV出力ボタンを右端に移動することはできますか
+
+[Assistant] CSV出力ボタンをヘッダー行の右端に寄せました。対象は frontend/src/pages/employee/EmployeeDashboardPage.jsx です。
