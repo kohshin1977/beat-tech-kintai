@@ -233,3 +233,87 @@ ToDo
 [User] いいですね。CSV出力ボタンを右端に移動することはできますか
 
 [Assistant] CSV出力ボタンをヘッダー行の右端に寄せました。対象は frontend/src/pages/employee/EmployeeDashboardPage.jsx です。
+
+[User] 次のようにCSVを出力することができますか。E14をその月の1日の出勤時間に出力する。
+
+[Assistant] すみません、確認させてください。1) E14はExcelのセル指定でしょうか？CSVだとセル位置の概念がないため、どのCSVレイアウトを想定していますか。2) どの画面のCSV（今日の勤怠状況からのCSV出力）に反映しますか。3) 『その月の1日の出勤時間』は、対象月の1日分の出勤時刻のみを特定の列に固定出力するという理解で合っていますか。
+
+[User] E14、つまり列が5番目、行が14番目を先頭に日付を除いた１ヶ月の出勤時間、退勤時間を出力して下さい
+
+[Assistant] 確認です。CSVでE14開始というのは、A〜D列を空にし、1〜13行を空行にして、14行目のE列からデータを書き出す理解で合っていますか？その場合、E列=出勤時間、F列=退勤時間で、対象月の全日分を順に並べますか。ヘッダー行は不要でよいですか。
+
+[User] 例えば2025年12月なら下記のような感じです
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,09:00,21:00,1:45
+,,,,,,,,09:00,21:00,1:45
+,,,,,,,,09:00,21:00,1:45
+,,,,,,,,09:00,21:00,1:45
+,,,,,,,,09:00,19:55,1:30 
+,,,,,,,,,,
+,,,,,,,,09:00,21:00,1:45
+,,,,,,,,09:00,21:05,1:45
+,,,,,,,,09:00,20:45,1:45
+,,,,,,,,09:00,20:40,1:45
+勤務時間の入力がない日は空欄を出力して下さい
+
+[Assistant] 例に合わせて、CSVは先頭14行を空行にし、9列目(I列相当)から出勤・退勤・休憩を出力するように変更しました。勤務時間が未入力の日は該当行を先頭カンマのみの空欄行で出力します。対象は frontend/src/services/exportService.js と frontend/src/pages/employee/EmployeeDashboardPage.jsx です。
+
+[User] export const buildEmployeeMonthlyCsvContent = (records, options = {}) => {
+  const startRow = Number.isInteger(options.startRow) ? options.startRow : 15
+  const startCol = Number.isInteger(options.startCol) ? options.startCol : 9
+  const prefix = ','.repeat(Math.max(startCol - 1, 0))
+  const lines = []
+
+  for (let i = 0; i < Math.max(startRow - 1, 0); i += 1) {
+    lines.push(prefix)
+  }
+
+  records.forEach((item) => {
+    const values = [item.clockInLabel ?? '', item.clockOutLabel ?? '', item.breakLabel ?? '']
+    const hasValues = values.some((value) => value !== '')
+    if (!hasValues) {
+      lines.push(prefix)
+      return
+    }
+    lines.push(prefix + values.map(escapeCsvValue).join(','))
+  })
+
+  return lines.join('
+')
+}
+この関数を解説して下さい
+
+[Assistant] buildEmployeeMonthlyCsvContentは、CSVの開始位置（行/列）を指定して、月次データをその位置から出力する関数です。startRow/startColで先頭の空行・空列を作り、prefix(カンマ連続)で開始列をずらします。recordsを順に走査し、出勤・退勤・休憩の値がすべて空なら空行を出力、値があればCSVエスケープして出力します。最後に改行で連結してCSV文字列を返します。
+
+[User]   const startRow = Number.isInteger(options.startRow) ? options.startRow : 15
+  const startCol = Number.isInteger(options.startCol) ? options.startCol : 9
+  const prefix = ','.repeat(Math.max(startCol - 1, 0))
+ 
+これはどういう意味ですか
+
+[Assistant] startRowは開始行番号で、options.startRowが整数ならそれを使い、指定がなければ15行目から開始します。startColは開始列番号で、options.startColが整数ならそれを使い、指定がなければ9列目から開始します。prefixは開始列までの空列を作るためのカンマ列で、startCol-1個分のカンマを並べています。
+
+[User]  const startRow = Number.isInteger(options.startRow) ? options.startRow : 14
+  const startCol = Number.isInteger(options.startCol) ? options.startCol : 7
+  const prefix = ','.repeat(Math.max(startCol - 1, 0))
+  const lines = []
+としても出力される行と列が変わりません
+
+[Assistant] 変更が反映されないのは、関数の呼び出し側で options を明示指定しているためです。今は handleCsvExport 側で startRow: 15, startCol: 9 を渡しているので、関数内のデフォルト値を変えても出力は変わりません。startRow/startCol を変えたい場合は呼び出し側の値を変更してください。必要ならこちらで修正します。
+
+[User] 09:00なら9:00にするようにcsvを出力するようにできますか
+
+[Assistant] CSV出力の出勤/退勤時刻で先頭ゼロを外すようにしました。formatCsvTimeで'09:00'を'9:00'に正規化し、CSV出力に反映しています。対象は frontend/src/pages/employee/EmployeeDashboardPage.jsx です。

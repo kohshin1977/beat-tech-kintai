@@ -93,20 +93,27 @@ export const buildCsvContent = (records) => {
     .join('\n')
 }
 
-export const buildEmployeeMonthlyCsvContent = (records) => {
-  const header = ['日付', '出勤', '退勤', '休憩', '実働時間', '勤務時間', '残業時間', '勤務内容']
-  const rows = records.map((item) => [
-    item.workDate,
-    item.clockInLabel ?? item.clockIn ?? '--:--',
-    item.clockOutLabel ?? item.clockOut ?? '--:--',
-    item.breakLabel ?? '-',
-    item.actualWorkLabel ?? '--:--',
-    item.totalLabel ?? '-',
-    item.overtimeLabel ?? '-',
-    item.workDescription ?? '',
-  ])
+export const buildEmployeeMonthlyCsvContent = (records, options = {}) => {
+  const startRow = Number.isInteger(options.startRow) ? options.startRow : 14
+  const startCol = Number.isInteger(options.startCol) ? options.startCol : 7
+  const prefix = ','.repeat(Math.max(startCol - 1, 0))
+  const lines = []
 
-  return [header, ...rows].map((columns) => columns.map(escapeCsvValue).join(',')).join('\n')
+  for (let i = 0; i < Math.max(startRow - 1, 0); i += 1) {
+    lines.push(prefix)
+  }
+
+  records.forEach((item) => {
+    const values = [item.clockInLabel ?? '', item.clockOutLabel ?? '', item.breakLabel ?? '']
+    const hasValues = values.some((value) => value !== '')
+    if (!hasValues) {
+      lines.push(prefix)
+      return
+    }
+    lines.push(prefix + values.map(escapeCsvValue).join(','))
+  })
+
+  return lines.join('\n')
 }
 
 export const downloadCsv = (csv, filename) => {

@@ -32,7 +32,6 @@ import {
   isValidTimeToken,
   timeTokenToMinutes,
   minutesToHourMinute,
-  minutesToDuration,
 } from '../../utils/time.js'
 import { buildEmployeeMonthlyCsvContent, downloadCsv } from '../../services/exportService.js'
 
@@ -199,6 +198,11 @@ const EmployeeDashboardPage = () => {
 
   const handleWarningModalClose = () => setWarningModal({ show: false, message: '' })
 
+  const formatCsvTime = (value) => {
+    const label = formatTime(value)
+    return label.replace(/^0(\d:)/, '$1')
+  }
+
   const handleCsvExport = () => {
     if (exportingCsv) return
     setExportingCsv(true)
@@ -209,29 +213,14 @@ const EmployeeDashboardPage = () => {
         const key = format(day, 'yyyy-MM-dd')
         const record = recordsByDate[key]
         const displayBreakMinutes = resolveDisplayBreakMinutes(day, record)
+        const hasWorkTimes = Boolean(record?.clockIn || record?.clockOut)
         return {
-          workDate: key,
-          clockInLabel: formatTime(record?.clockIn),
-          clockOutLabel: formatTime(record?.clockOut),
-          breakLabel: minutesToHourMinute(displayBreakMinutes),
-          actualWorkLabel: formatActualWorkDuration(
-            record?.clockIn,
-            record?.clockOut,
-            displayBreakMinutes,
-            record?.breakPeriods,
-          ),
-          totalLabel:
-            record?.totalMinutes === null || record?.totalMinutes === undefined
-              ? '-'
-              : minutesToDuration(record.totalMinutes),
-          overtimeLabel:
-            record?.overtimeMinutes === null || record?.overtimeMinutes === undefined
-              ? '-'
-              : minutesToDuration(record.overtimeMinutes),
-          workDescription: record?.workDescription ?? '',
+          clockInLabel: hasWorkTimes ? formatCsvTime(record?.clockIn) : '',
+          clockOutLabel: hasWorkTimes ? formatCsvTime(record?.clockOut) : '',
+          breakLabel: hasWorkTimes ? minutesToHourMinute(displayBreakMinutes) : '',
         }
       })
-      const csv = buildEmployeeMonthlyCsvContent(rows)
+      const csv = buildEmployeeMonthlyCsvContent(rows, { startRow: 14, startCol: 6 })
       const monthKey = format(calendarMonth, 'yyyy-MM')
       downloadCsv(csv, `勤怠_${monthKey}.csv`)
       setSuccess('CSVファイルを生成しました。')
