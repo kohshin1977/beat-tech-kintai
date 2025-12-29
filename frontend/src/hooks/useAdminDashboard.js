@@ -5,7 +5,7 @@ import {
   listenToTodayStatuses,
   listenToAllMonthlySummaries,
 } from '../services/attendanceService.js'
-import { listenToEmployees } from '../services/userService.js'
+import { listenToAllUsers } from '../services/userService.js'
 import { formatTime, formatYearMonth } from '../utils/time.js'
 
 const useAdminDashboard = (targetDate = new Date()) => {
@@ -15,7 +15,7 @@ const useAdminDashboard = (targetDate = new Date()) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const stopEmployees = listenToEmployees((rows) => {
+    const stopEmployees = listenToAllUsers((rows) => {
       setEmployees(rows)
       setLoading(false)
     })

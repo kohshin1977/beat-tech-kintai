@@ -13,6 +13,11 @@ export const listenToEmployees = (callback) => {
   })
 }
 
+export const listenToAllUsers = (callback) =>
+  onSnapshot(collection(db, 'users'), (snapshot) => {
+    callback(snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })))
+  })
+
 export const listenToAdmins = (callback) => {
   const usersQuery = query(collection(db, 'users'), where('role', '==', 'admin'))
   return onSnapshot(usersQuery, (snapshot) => {

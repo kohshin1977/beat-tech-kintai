@@ -367,3 +367,11 @@ ToDo
 [User] adminでログインするとhttps://kintai-app-ad7a8.web.app/adminに遷移して勤怠時間を入力できません
 
 [Assistant] ログイン時のfromPathを管理者では/adminに戻らないよう制御し、/employeeへ遷移するように修正しました。対象は frontend/src/pages/LoginPage.jsx です。
+
+[User] 管理者画面のダッシュボードにはadminも含めた全てのユーザーの月の勤務時間を表示するようにして下さい
+
+[Assistant] 管理者ダッシュボードの月次勤務時間一覧を全ユーザー対象にするため、usersコレクション全件を購読するlistenToAllUsersを追加し、useAdminDashboardで利用するように変更しました。対象は frontend/src/services/userService.js と frontend/src/hooks/useAdminDashboard.js です。
+
+[User] adminが勤務時間入力画面から管理者画面に遷移した後、次にログインしたら管理者画面に遷移してしまいます
+
+[Assistant] ログイン後の遷移先は/employeeのみ許可し、fromPathが/employee以外の場合は常に/employeeへ遷移するように修正しました。対象は frontend/src/pages/LoginPage.jsx です。
