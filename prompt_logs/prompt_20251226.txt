@@ -353,3 +353,17 @@ ToDo
 [User] roleがadminの場合はemployeeの画面を表示して管理者画面というボタンを用意して管理者画面に遷移するようにできますか
 
 [Assistant] adminでも/employeeを表示できるようRoleGuardの許可ロールにadminを追加し、employee画面のヘッダーに管理者画面ボタンを追加しました。対象は frontend/src/App.jsx と frontend/src/pages/employee/EmployeeLayout.jsx です。
+
+[User] 管理者画面ではダッシュボードに下記を表示するようにして下さい。
+それぞれのemployeeの月の合計勤務時間
+
+[Assistant] 管理者ダッシュボードに月次勤務時間（当月）の社員別一覧を追加しました。useAdminDashboardで月次サマリーを購読し、AdminDashboardPageに勤務時間合計の表を表示しています。対象は frontend/src/hooks/useAdminDashboard.js と frontend/src/pages/admin/AdminDashboardPage.jsx です。
+
+[User] adminはログイン時には勤務時間入力画面に遷移するようにして下さい。
+管理者用画面にも勤務時間入力画面ボタンを用意して遷移できるようにして下さい
+
+[Assistant] 管理者ログイン時の初期遷移先を/employeeに変更し、管理者画面のヘッダーに『勤務時間入力画面』ボタンを追加しました。対象は frontend/src/pages/LoginPage.jsx と frontend/src/pages/admin/AdminLayout.jsx です。
+
+[User] adminでログインするとhttps://kintai-app-ad7a8.web.app/adminに遷移して勤怠時間を入力できません
+
+[Assistant] ログイン時のfromPathを管理者では/adminに戻らないよう制御し、/employeeへ遷移するように修正しました。対象は frontend/src/pages/LoginPage.jsx です。

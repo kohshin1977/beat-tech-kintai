@@ -4,11 +4,19 @@ import {
   minutesToDuration,
   formatActualWorkDuration,
   minutesToHourMinute,
+  formatYearMonth,
 } from '../../utils/time.js'
 
 const AdminDashboardPage = () => {
-  const { stats, workingEmployees, completedEmployees, notStartedEmployees, overtimeEmployees } =
-    useAdminDashboard()
+  const {
+    stats,
+    workingEmployees,
+    completedEmployees,
+    notStartedEmployees,
+    overtimeEmployees,
+    monthlySummaryRows,
+  } = useAdminDashboard()
+  const monthLabel = formatYearMonth(new Date())
 
   const renderEmployeeRow = (item) => (
     <tr key={item.userId}>
@@ -72,6 +80,37 @@ const AdminDashboardPage = () => {
           </Card>
         </Col>
       </Row>
+
+      <Card className="shadow-sm">
+        <Card.Header className="fw-semibold">月次勤務時間（{monthLabel}）</Card.Header>
+        <Card.Body className="p-0">
+          <Table responsive hover className="mb-0 align-middle">
+            <thead className="table-light">
+              <tr>
+                <th>社員</th>
+                <th>部署</th>
+                <th className="text-end">勤務時間合計</th>
+              </tr>
+            </thead>
+            <tbody>
+              {monthlySummaryRows.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="text-center text-muted py-4">
+                    月次集計データがありません。
+                  </td>
+                </tr>
+              )}
+              {monthlySummaryRows.map((item) => (
+                <tr key={item.userId}>
+                  <td>{item.name}</td>
+                  <td>{item.department}</td>
+                  <td className="text-end">{minutesToDuration(item.totalMinutes)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </Card.Body>
+      </Card>
 
       <Row className="g-3">
         <Col xs={12} xl={6}>

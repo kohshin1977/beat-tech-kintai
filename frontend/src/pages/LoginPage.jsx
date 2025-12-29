@@ -16,12 +16,13 @@ const LoginPage = () => {
   const fromPath = location.state?.from?.pathname
 
   if (!loading && user && profile?.role) {
-    if (fromPath) {
+    const isAdmin = profile.role === 'admin'
+    const canUseFromPath = fromPath && (!isAdmin || fromPath.startsWith('/employee'))
+    if (canUseFromPath) {
       return <Navigate to={fromPath} replace />
     }
 
-    const redirectPath = profile.role === 'admin' ? '/admin' : '/employee'
-    return <Navigate to={redirectPath} replace />
+    return <Navigate to="/employee" replace />
   }
 
   const handleChange = (field) => (event) => {

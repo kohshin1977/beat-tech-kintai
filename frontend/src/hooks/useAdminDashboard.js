@@ -3,13 +3,15 @@ import {
   calculateRealtimeTotals,
   formatWorkDate,
   listenToTodayStatuses,
+  listenToAllMonthlySummaries,
 } from '../services/attendanceService.js'
 import { listenToEmployees } from '../services/userService.js'
-import { formatTime } from '../utils/time.js'
+import { formatTime, formatYearMonth } from '../utils/time.js'
 
 const useAdminDashboard = (targetDate = new Date()) => {
   const [employees, setEmployees] = useState([])
   const [attendance, setAttendance] = useState([])
+  const [monthlySummaries, setMonthlySummaries] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -26,6 +28,14 @@ const useAdminDashboard = (targetDate = new Date()) => {
       setAttendance(rows)
     })
     return () => stopAttendance?.()
+  }, [targetDate])
+
+  useEffect(() => {
+    const yearMonth = formatYearMonth(targetDate)
+    const stopSummaries = listenToAllMonthlySummaries(yearMonth, (rows) => {
+      setMonthlySummaries(rows)
+    })
+    return () => stopSummaries?.()
   }, [targetDate])
 
   const statusRows = useMemo(() => {
@@ -83,12 +93,28 @@ const useAdminDashboard = (targetDate = new Date()) => {
     notStarted: notStartedEmployees.length,
   }
 
+  const monthlySummaryRows = useMemo(() => {
+    const summaryMap = new Map(monthlySummaries.map((row) => [row.userId, row]))
+    return employees
+      .map((employee) => {
+        const summary = summaryMap.get(employee.id)
+        return {
+          userId: employee.id,
+          name: employee.name,
+          department: employee.department,
+          totalMinutes: summary?.totalMinutes ?? 0,
+        }
+      })
+      .sort((a, b) => a.department.localeCompare(b.department, 'ja') || a.name.localeCompare(b.name, 'ja'))
+  }, [employees, monthlySummaries])
+
   return {
     stats,
     workingEmployees,
     completedEmployees,
     notStartedEmployees,
     overtimeEmployees,
+    monthlySummaryRows,
     loading,
   }
 }

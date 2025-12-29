@@ -1,9 +1,10 @@
 import { Container, Nav, Navbar } from 'react-bootstrap'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 const AdminLayout = () => {
   const { profile, signOutUser } = useAuth()
+  const navigate = useNavigate()
 
   return (
     <div className="app-shell">
@@ -24,6 +25,13 @@ const AdminLayout = () => {
               </Nav.Link>
             </Nav>
             <div className="d-flex flex-column flex-lg-row align-items-lg-center gap-2 text-lg-end">
+              <button
+                type="button"
+                className="btn btn-outline-light btn-sm"
+                onClick={() => navigate('/employee')}
+              >
+                勤務時間入力画面
+              </button>
               <span className="text-muted small">
                 {profile?.department ? `${profile.department} ` : ''}
                 {profile?.name ?? '管理者'}
