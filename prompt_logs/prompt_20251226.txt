@@ -345,3 +345,11 @@ ToDo
 [User] 勤務内容入力画面で最近の入力というボタンを表示して直近５日間の勤務内容を選択してコピーできるようにして下さい
 
 [Assistant] 勤務内容入力モーダルに「最近の入力」ボタンを追加し、直近5日分の勤務内容を選択してコピーできるモーダルを追加しました。対象は frontend/src/pages/employee/EmployeeDashboardPage.jsx です。
+
+[User] 管理者用のアカウント設定はどうなっていますか
+
+[Assistant] 管理者アカウントはFirestoreのusers/{userId}でroleが'admin'のユーザーです。RoleGuardとLoginPageでroleを判定して/admin配下へ遷移します。管理者にしたいユーザーのusersドキュメントのroleをadminに設定してください。
+
+[User] roleがadminの場合はemployeeの画面を表示して管理者画面というボタンを用意して管理者画面に遷移するようにできますか
+
+[Assistant] adminでも/employeeを表示できるようRoleGuardの許可ロールにadminを追加し、employee画面のヘッダーに管理者画面ボタンを追加しました。対象は frontend/src/App.jsx と frontend/src/pages/employee/EmployeeLayout.jsx です。

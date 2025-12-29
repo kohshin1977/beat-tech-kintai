@@ -25,7 +25,7 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
 
       <Route element={<ProtectedRoute />}>
-        <Route element={<RoleGuard allowedRoles={['employee']} />}>
+        <Route element={<RoleGuard allowedRoles={['employee', 'admin']} />}>
           <Route path="/employee" element={<EmployeeLayout />}>
             <Route index element={<EmployeeDashboardPage />} />
             <Route path="history" element={<EmployeeHistoryPage />} />
