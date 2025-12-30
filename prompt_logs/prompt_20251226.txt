@@ -478,3 +478,7 @@ ToDo
 [報告・相談事項]
 
 [Assistant] 週報入力の初期文言として指定の見出しをテキストエリアに設定しました。対象は frontend/src/pages/employee/EmployeeWeeklyReportPage.jsx です。
+
+[User] 週報入力画面に草稿に保存ボタンと送信ボタンを作成して下さい。草稿に保存は入力内容を保存して下さい。送信ボタンは工事中にして下さい
+
+[Assistant] 週報入力画面に草稿保存ボタンと送信（工事中）ボタンを追加しました。草稿はlocalStorageに保存し、保存メッセージを表示します。対象は frontend/src/pages/employee/EmployeeWeeklyReportPage.jsx です。

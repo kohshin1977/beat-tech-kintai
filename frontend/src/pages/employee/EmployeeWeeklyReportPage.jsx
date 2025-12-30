@@ -1,13 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button, Card, Form } from 'react-bootstrap'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext.jsx'
 
 const EmployeeWeeklyReportPage = () => {
   const location = useLocation()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [report, setReport] = useState(
     ['[作業内容]', '', '[課題と解決策]', '', '[学びと気付き]', '', '[報告・相談事項]'].join('\n'),
   )
+  const [savedMessage, setSavedMessage] = useState('')
 
   const { start, end, week } = useMemo(() => {
     const params = new URLSearchParams(location.search)
@@ -19,6 +22,23 @@ const EmployeeWeeklyReportPage = () => {
   }, [location.search])
 
   const rangeLabel = start && end ? `${start} 〜 ${end}` : '対象期間未選択'
+  const draftKey = useMemo(
+    () => `weeklyReportDraft:${user?.uid ?? 'guest'}:${start || 'start'}:${end || 'end'}`,
+    [user?.uid, start, end],
+  )
+
+  useEffect(() => {
+    const saved = localStorage.getItem(draftKey)
+    if (saved) {
+      setReport(saved)
+    }
+  }, [draftKey])
+
+  const handleDraftSave = () => {
+    localStorage.setItem(draftKey, report)
+    setSavedMessage('草稿を保存しました。')
+    setTimeout(() => setSavedMessage(''), 2000)
+  }
 
   return (
     <div className="d-flex flex-column gap-3">
@@ -41,6 +61,7 @@ const EmployeeWeeklyReportPage = () => {
               placeholder="今週の作業内容・成果・課題などを入力"
             />
           </Form.Group>
+          {savedMessage && <div className="text-success small mt-2">{savedMessage}</div>}
         </Card.Body>
       </Card>
 
@@ -48,9 +69,14 @@ const EmployeeWeeklyReportPage = () => {
         <Button variant="outline-secondary" onClick={() => navigate(-1)}>
           戻る
         </Button>
-        <Button variant="primary" disabled>
-          保存（準備中）
-        </Button>
+        <div className="d-flex gap-2">
+          <Button variant="outline-primary" onClick={handleDraftSave}>
+            草稿に保存
+          </Button>
+          <Button variant="secondary" disabled>
+            送信（工事中）
+          </Button>
+        </div>
       </div>
     </div>
   )
