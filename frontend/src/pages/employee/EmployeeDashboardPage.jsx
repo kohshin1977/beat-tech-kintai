@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, Card, Col, Form, Modal, Nav, Row, Stack, Table } from 'react-bootstrap'
+import { useNavigate } from 'react-router-dom'
 import {
   addMonths,
   eachDayOfInterval,
@@ -96,6 +97,7 @@ const buildInitialBreakScheduleModalState = () => ({
 
 const EmployeeDashboardPage = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDate, setSelectedDate] = useState(() => new Date())
   const [viewMode, setViewMode] = useState(VIEW_MODES.LIST)
@@ -853,7 +855,15 @@ const EmployeeDashboardPage = () => {
             </div>
             <div className="d-flex flex-wrap gap-2">
               {weeklyRanges.map((range, index) => (
-                <Button key={`${format(range.start, 'yyyy-MM-dd')}-${index}`} variant="outline-primary">
+                <Button
+                  key={`${format(range.start, 'yyyy-MM-dd')}-${index}`}
+                  variant="outline-primary"
+                  onClick={() => {
+                    const start = format(range.start, 'yyyy-MM-dd')
+                    const end = format(range.end, 'yyyy-MM-dd')
+                    navigate(`/employee/weekly-report?week=${index + 1}&start=${start}&end=${end}`)
+                  }}
+                >
                   第{index + 1}週 {formatWithLocale(range.start, 'M/d')}〜{formatWithLocale(range.end, 'M/d')}
                 </Button>
               ))}

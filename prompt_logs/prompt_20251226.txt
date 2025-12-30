@@ -463,3 +463,18 @@ ToDo
 [User] 週報タブに一覧のように前の月、次の月ボタンを作成して下さい
 
 [Assistant] 週報タブに前の月/次の月のボタンと当月表示を追加しました。対象は frontend/src/pages/employee/EmployeeDashboardPage.jsx です。
+
+[User] 週報タブ内の各週のボタンを押下すると週報入力画面に遷移するようにして下さい
+
+[Assistant] 週報ボタン押下で/employee/weekly-reportに遷移し、期間をクエリで渡すように実装しました。週報入力ページを追加し、Appルートに登録しています。対象は frontend/src/pages/employee/EmployeeDashboardPage.jsx と frontend/src/pages/employee/EmployeeWeeklyReportPage.jsx と frontend/src/App.jsx です。
+
+[User] 週報入力のテキストボックスに下記をデフォルトで入力して下さい
+[作業内容]
+
+[課題と解決策]
+
+[学びと気付き]
+
+[報告・相談事項]
+
+[Assistant] 週報入力の初期文言として指定の見出しをテキストエリアに設定しました。対象は frontend/src/pages/employee/EmployeeWeeklyReportPage.jsx です。

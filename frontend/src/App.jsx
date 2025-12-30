@@ -7,6 +7,7 @@ import EmployeeLayout from './pages/employee/EmployeeLayout.jsx'
 import EmployeeDashboardPage from './pages/employee/EmployeeDashboardPage.jsx'
 import EmployeeHistoryPage from './pages/employee/EmployeeHistoryPage.jsx'
 import EmployeeMonthlySummaryPage from './pages/employee/EmployeeMonthlySummaryPage.jsx'
+import EmployeeWeeklyReportPage from './pages/employee/EmployeeWeeklyReportPage.jsx'
 import AdminLayout from './pages/admin/AdminLayout.jsx'
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx'
 import AdminDailyViewPage from './pages/admin/AdminDailyViewPage.jsx'
@@ -30,6 +31,7 @@ function App() {
             <Route index element={<EmployeeDashboardPage />} />
             <Route path="history" element={<EmployeeHistoryPage />} />
             <Route path="summary" element={<EmployeeMonthlySummaryPage />} />
+            <Route path="weekly-report" element={<EmployeeWeeklyReportPage />} />
           </Route>
         </Route>
 
