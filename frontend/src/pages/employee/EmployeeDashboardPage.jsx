@@ -3,11 +3,14 @@ import { Button, Card, Col, Form, Modal, Nav, Row, Stack, Table } from 'react-bo
 import {
   addMonths,
   eachDayOfInterval,
+  eachWeekOfInterval,
+  endOfWeek,
   endOfMonth,
   format,
   isSameDay,
   isSameMonth,
   parseISO,
+  startOfWeek,
   startOfMonth,
 } from 'date-fns'
 import { ja } from 'date-fns/locale'
@@ -211,6 +214,19 @@ const EmployeeDashboardPage = () => {
         workDescription: record.workDescription.trim(),
       }))
   }, [monthlyRecords])
+
+  const weeklyRanges = useMemo(() => {
+    const start = startOfMonth(calendarMonth)
+    const end = endOfMonth(calendarMonth)
+    return eachWeekOfInterval({ start, end }, { weekStartsOn: 1 }).map((weekStart) => {
+      const rangeStart = startOfWeek(weekStart, { weekStartsOn: 1 })
+      const rangeEnd = endOfWeek(weekStart, { weekStartsOn: 1 })
+      return {
+        start: rangeStart < start ? start : rangeStart,
+        end: rangeEnd > end ? end : rangeEnd,
+      }
+    })
+  }, [calendarMonth])
 
   const formatCsvTime = (value) => {
     const label = formatTime(value)
@@ -825,7 +841,14 @@ const EmployeeDashboardPage = () => {
         <Card className="shadow-sm">
           <Card.Body>
             <h3 className="h6 fw-bold mb-2">週報</h3>
-            <p className="text-muted small mb-0">週報の入力機能は準備中です。</p>
+            <p className="text-muted small mb-3">当月を月曜日〜日曜日で区切った週を選択できます。</p>
+            <div className="d-flex flex-wrap gap-2">
+              {weeklyRanges.map((range, index) => (
+                <Button key={`${format(range.start, 'yyyy-MM-dd')}-${index}`} variant="outline-primary">
+                  第{index + 1}週 {formatWithLocale(range.start, 'M/d')}〜{formatWithLocale(range.end, 'M/d')}
+                </Button>
+              ))}
+            </div>
           </Card.Body>
         </Card>
       )}
