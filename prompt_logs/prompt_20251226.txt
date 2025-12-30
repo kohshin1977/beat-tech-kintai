@@ -451,3 +451,7 @@ ToDo
 [User] failed-precondition: COLLECTION_ASC index for collection attendance and field workDate
 
 [Assistant] attendance.workDate の単一フィールドにコレクションスコープ(COLLECTION_ASC)を追加しました。firebase deploy --only firestore:indexes を実行してください。
+
+[User] employeeに週報機能を追加したいです。一覧、設定と同列のタブに週報タブを追加して下さい
+
+[Assistant] employeeのタブに週報を追加し、週報タブの表示領域を用意しました。対象は frontend/src/pages/employee/EmployeeDashboardPage.jsx です。

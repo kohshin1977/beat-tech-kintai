@@ -39,6 +39,7 @@ import { buildEmployeeMonthlyCsvContent, downloadCsv } from '../../services/expo
 const VIEW_MODES = {
   LIST: 'list',
   SETTINGS: 'settings',
+  WEEKLY_REPORT: 'weekly-report',
 }
 
 const formatWithLocale = (date, pattern) => format(date, pattern, { locale: ja })
@@ -624,6 +625,9 @@ const EmployeeDashboardPage = () => {
         <Nav.Item>
           <Nav.Link eventKey={VIEW_MODES.SETTINGS}>設定</Nav.Link>
         </Nav.Item>
+        <Nav.Item>
+          <Nav.Link eventKey={VIEW_MODES.WEEKLY_REPORT}>週報</Nav.Link>
+        </Nav.Item>
       </Nav>
 
       <ErrorAlert message={error} onClose={() => setError('')} />
@@ -813,6 +817,15 @@ const EmployeeDashboardPage = () => {
                 </tbody>
               </Table>
             </div>
+          </Card.Body>
+        </Card>
+      )}
+
+      {viewMode === VIEW_MODES.WEEKLY_REPORT && (
+        <Card className="shadow-sm">
+          <Card.Body>
+            <h3 className="h6 fw-bold mb-2">週報</h3>
+            <p className="text-muted small mb-0">週報の入力機能は準備中です。</p>
           </Card.Body>
         </Card>
       )}
