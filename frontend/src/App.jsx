@@ -12,6 +12,7 @@ import AdminLayout from './pages/admin/AdminLayout.jsx'
 import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx'
 import AdminDailyViewPage from './pages/admin/AdminDailyViewPage.jsx'
 import AdminExportPage from './pages/admin/AdminExportPage.jsx'
+import AdminWeeklyReportsPage from './pages/admin/AdminWeeklyReportsPage.jsx'
 import { useAuth } from './context/AuthContext.jsx'
 
 function App() {
@@ -40,6 +41,7 @@ function App() {
             <Route index element={<AdminDashboardPage />} />
             <Route path="daily" element={<AdminDailyViewPage />} />
             <Route path="export" element={<AdminExportPage />} />
+            <Route path="weekly-reports" element={<AdminWeeklyReportsPage />} />
           </Route>
         </Route>
       </Route>

@@ -40,5 +40,16 @@
         }
       ]
     }
+    ,
+    {
+      "collectionGroup": "weeklyReports",
+      "fieldPath": "start",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "DESCENDING"
+        }
+      ]
+    }
   ]
 }

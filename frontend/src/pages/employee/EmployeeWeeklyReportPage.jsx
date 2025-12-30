@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button, Card, Form } from 'react-bootstrap'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { saveWeeklyReport } from '../../services/weeklyReportService.js'
 
 const EmployeeWeeklyReportPage = () => {
   const location = useLocation()
@@ -11,6 +12,8 @@ const EmployeeWeeklyReportPage = () => {
     ['[作業内容]', '', '[課題と解決策]', '', '[学びと気付き]', '', '[報告・相談事項]'].join('\n'),
   )
   const [savedMessage, setSavedMessage] = useState('')
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
 
   const { start, end, week } = useMemo(() => {
     const params = new URLSearchParams(location.search)
@@ -40,6 +43,37 @@ const EmployeeWeeklyReportPage = () => {
     setTimeout(() => setSavedMessage(''), 2000)
   }
 
+  const handleSubmit = async () => {
+    if (!user?.uid) {
+      setError('ログイン情報が取得できません。')
+      return
+    }
+    if (!start || !end) {
+      setError('週の期間が取得できません。')
+      return
+    }
+
+    setError('')
+    setSending(true)
+    try {
+      await saveWeeklyReport(user.uid, `${start}_${end}`, {
+        start,
+        end,
+        week: Number(week) || null,
+        content: report,
+        status: 'submitted',
+      })
+      localStorage.removeItem(draftKey)
+      setSavedMessage('週報を送信しました。')
+      setTimeout(() => setSavedMessage(''), 2000)
+    } catch (submitError) {
+      console.error('Failed to submit weekly report', submitError)
+      setError('送信に失敗しました。時間をおいて再度お試しください。')
+    } finally {
+      setSending(false)
+    }
+  }
+
   return (
     <div className="d-flex flex-column gap-3">
       <div>
@@ -62,6 +96,7 @@ const EmployeeWeeklyReportPage = () => {
             />
           </Form.Group>
           {savedMessage && <div className="text-success small mt-2">{savedMessage}</div>}
+          {error && <div className="text-danger small mt-2">{error}</div>}
         </Card.Body>
       </Card>
 
@@ -73,8 +108,8 @@ const EmployeeWeeklyReportPage = () => {
           <Button variant="outline-primary" onClick={handleDraftSave}>
             草稿に保存
           </Button>
-          <Button variant="secondary" disabled>
-            送信（工事中）
+          <Button variant="primary" onClick={handleSubmit} disabled={sending}>
+            {sending ? '送信中…' : '送信'}
           </Button>
         </div>
       </div>

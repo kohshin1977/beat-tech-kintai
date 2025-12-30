@@ -23,6 +23,9 @@ const AdminLayout = () => {
               <Nav.Link as={NavLink} to="export">
                 エクスポート
               </Nav.Link>
+              <Nav.Link as={NavLink} to="weekly-reports">
+                週報
+              </Nav.Link>
             </Nav>
             <div className="d-flex flex-column flex-lg-row align-items-lg-center gap-2 text-lg-end">
               <button

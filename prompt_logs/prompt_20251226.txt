@@ -482,3 +482,23 @@ ToDo
 [User] 週報入力画面に草稿に保存ボタンと送信ボタンを作成して下さい。草稿に保存は入力内容を保存して下さい。送信ボタンは工事中にして下さい
 
 [Assistant] 週報入力画面に草稿保存ボタンと送信（工事中）ボタンを追加しました。草稿はlocalStorageに保存し、保存メッセージを表示します。対象は frontend/src/pages/employee/EmployeeWeeklyReportPage.jsx です。
+
+[User] 週報入力画面の送信ボタンを押下するとk-tokunaga@beat-tech.co.jpに週報内容を送信するようにしたい
+
+[Assistant] 送信方法の確認が必要です。Firebase Functions + SendGrid/SMTPのどちらで送信するか、既存のメール送信設定があるか、送信元アドレス/件名/本文フォーマットの希望を確認しました。
+
+[User] Firebase Functionsを使用して下さい。送り元はユーザーのアドレスにして下さい
+
+[Assistant] Firebase Functionsで送信可能です。ただしFromをユーザーのアドレスにするにはSMTP側の送信制限があるため、通常はFromは固定アドレスでReply-Toにユーザーのアドレスを設定します。使用する送信プロバイダ（SendGrid/SMTP）と接続情報、Fromアドレス/ドメインの指定を教えてください。
+
+[User] 返信先は架空のアドレスを現在使用しています。このような場合、送信先に週報を通知するにはどのような方法がありますか？
+
+[Assistant] 返信先が使えない場合は、送信元を固定の検証済みアドレスにし本文にユーザー情報を記載する方法、SendGridなどで送信元ドメインを認証してReply-Toにユーザーの実アドレスを設定する方法、または送信をやめてFirestoreに保存し管理者がダッシュボードで閲覧する方法を提案しました。
+
+[User] メール送信をやめて、週報をFirestoreに保存し管理者画面で閲覧にできますか
+
+[Assistant] 週報の送信をFirestore保存に切り替え、管理者画面に週報一覧を追加しました。週報送信ボタンはFirestoreに保存します。Firestoreルールとインデックスも更新しました。対象は frontend/src/pages/employee/EmployeeWeeklyReportPage.jsx、frontend/src/services/weeklyReportService.js、frontend/src/pages/admin/AdminWeeklyReportsPage.jsx、frontend/src/pages/admin/AdminLayout.jsx、frontend/src/App.jsx、firestore.rules、firestore.indexes.json です。
+
+[User] 送信に失敗しました。時間をおいて再度お試しください。と表示されます
+
+[Assistant] コンソールの実エラー（permission-denied等）と、firestore.rules/indexesのデプロイ有無を確認依頼しました。
