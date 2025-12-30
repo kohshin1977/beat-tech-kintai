@@ -495,6 +495,28 @@ export const listenToTodayStatuses = (workDate, callback) => {
   })
 }
 
+export const listenToMonthlyAttendanceForAllUsers = (yearMonth, callback) => {
+  const monthDate = parseISO(`${yearMonth}-01`)
+  const start = startOfMonth(monthDate)
+  const end = endOfMonth(monthDate)
+  const startKey = format(start, 'yyyy-MM-dd')
+  const endKey = format(end, 'yyyy-MM-dd')
+  const attendanceQuery = query(
+    collectionGroup(db, 'attendance'),
+    orderBy('workDate'),
+    startAt(startKey),
+    endAt(endKey),
+  )
+
+  return onSnapshot(attendanceQuery, (snapshot) => {
+    const rows = snapshot.docs.map((docSnap) => ({
+      ...docSnap.data(),
+      userId: docSnap.ref.parent.parent?.id ?? null,
+    }))
+    callback(rows)
+  })
+}
+
 export const fetchDailyAttendanceForAllEmployees = async (workDate) => {
   const attendanceQuery = query(
     collectionGroup(db, 'attendance'),

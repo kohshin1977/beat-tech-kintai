@@ -375,3 +375,31 @@ ToDo
 [User] adminが勤務時間入力画面から管理者画面に遷移した後、次にログインしたら管理者画面に遷移してしまいます
 
 [Assistant] ログイン後の遷移先は/employeeのみ許可し、fromPathが/employee以外の場合は常に/employeeへ遷移するように修正しました。対象は frontend/src/pages/LoginPage.jsx です。
+
+[User] 管理者画面には全てのemployeeの当月の勤務時間を表示するようにして下さい
+
+[Assistant] 管理者ダッシュボードの月次勤務時間一覧を社員のみ表示するように絞り込みました。対象は frontend/src/hooks/useAdminDashboard.js です。
+
+[User] ダッシュボードにリアルタイムの項目を表示する必要はありません。当月の合計勤務時間だけ表示するようにして下さい
+
+[Assistant] 管理者ダッシュボードを月次勤務時間一覧のみの表示に整理し、リアルタイム系カードと一覧を削除しました。対象は frontend/src/pages/admin/AdminDashboardPage.jsx です。
+
+[User] 管理者画面の月次勤務時間一覧にはadminも含めた全てのユーザーの勤務時間を表示するようにして下さい
+
+[Assistant] 月次勤務時間一覧を管理者含む全ユーザー対象に戻しました。対象は frontend/src/hooks/useAdminDashboard.js です。
+
+[User] 管理者画面でなぜか一人分しか表示されません
+
+[Assistant] 確認させてください。1) Firestoreのusersコレクションに複数ユーザーが存在していますか？2) monthlySummaryは各ユーザーに当月分が作成されていますか（users/{uid}/monthlySummary/{yearMonth}）？3) 管理者画面の月次一覧で表示したい月（当月）にデータがありますか？4) ブラウザのコンソールにエラーは出ていますか？
+
+[User] 複数ユーザーが登録されています。
+
+[Assistant] firestore.rules が全拒否になっているため、管理者が他ユーザーを読めない可能性があります。コンソールの実ルールを確認し、adminにusersとmonthlySummaryの読み取りを許可するルールへ更新する必要があります。
+
+[User] OKです。
+
+[Assistant] Firestoreルールを管理者が全ユーザーのusers/attendance/monthlySummaryを読めるように更新しました。firestore.rules をデプロイしてください。
+
+[User] 全ユーザーの勤務時間が見れるようになりましたが自分以外の勤務時間が0:00になってしまいます
+
+[Assistant] 月次サマリーに依存せず、当月のattendanceをcollectionGroupで取得して合計する方式に変更しました。これにより他ユーザーの合計が0になる問題を回避します。対象は frontend/src/services/attendanceService.js と frontend/src/hooks/useAdminDashboard.js です。

@@ -3,7 +3,7 @@ import {
   calculateRealtimeTotals,
   formatWorkDate,
   listenToTodayStatuses,
-  listenToAllMonthlySummaries,
+  listenToMonthlyAttendanceForAllUsers,
 } from '../services/attendanceService.js'
 import { listenToAllUsers } from '../services/userService.js'
 import { formatTime, formatYearMonth } from '../utils/time.js'
@@ -11,7 +11,7 @@ import { formatTime, formatYearMonth } from '../utils/time.js'
 const useAdminDashboard = (targetDate = new Date()) => {
   const [employees, setEmployees] = useState([])
   const [attendance, setAttendance] = useState([])
-  const [monthlySummaries, setMonthlySummaries] = useState([])
+  const [monthlyAttendance, setMonthlyAttendance] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -32,8 +32,8 @@ const useAdminDashboard = (targetDate = new Date()) => {
 
   useEffect(() => {
     const yearMonth = formatYearMonth(targetDate)
-    const stopSummaries = listenToAllMonthlySummaries(yearMonth, (rows) => {
-      setMonthlySummaries(rows)
+    const stopSummaries = listenToMonthlyAttendanceForAllUsers(yearMonth, (rows) => {
+      setMonthlyAttendance(rows)
     })
     return () => stopSummaries?.()
   }, [targetDate])
@@ -94,19 +94,23 @@ const useAdminDashboard = (targetDate = new Date()) => {
   }
 
   const monthlySummaryRows = useMemo(() => {
-    const summaryMap = new Map(monthlySummaries.map((row) => [row.userId, row]))
+    const totalMap = new Map()
+    monthlyAttendance.forEach((record) => {
+      if (!record?.userId) return
+      const current = totalMap.get(record.userId) ?? 0
+      totalMap.set(record.userId, current + (record.totalMinutes ?? 0))
+    })
     return employees
       .map((employee) => {
-        const summary = summaryMap.get(employee.id)
         return {
           userId: employee.id,
           name: employee.name,
           department: employee.department,
-          totalMinutes: summary?.totalMinutes ?? 0,
+          totalMinutes: totalMap.get(employee.id) ?? 0,
         }
       })
       .sort((a, b) => a.department.localeCompare(b.department, 'ja') || a.name.localeCompare(b.name, 'ja'))
-  }, [employees, monthlySummaries])
+  }, [employees, monthlyAttendance])
 
   return {
     stats,
