@@ -459,3 +459,7 @@ ToDo
 [User] 週報タブは月曜日から日曜日までの当月を第１週から第４週または５週まで分けてボタンを表示して下さい
 
 [Assistant] 週報タブで当月を月曜始まりの週に分け、第1週〜第4/5週のボタンを表示するようにしました。対象は frontend/src/pages/employee/EmployeeDashboardPage.jsx です。
+
+[User] 週報タブに一覧のように前の月、次の月ボタンを作成して下さい
+
+[Assistant] 週報タブに前の月/次の月のボタンと当月表示を追加しました。対象は frontend/src/pages/employee/EmployeeDashboardPage.jsx です。

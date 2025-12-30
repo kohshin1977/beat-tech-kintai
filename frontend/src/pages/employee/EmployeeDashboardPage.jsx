@@ -842,6 +842,15 @@ const EmployeeDashboardPage = () => {
           <Card.Body>
             <h3 className="h6 fw-bold mb-2">週報</h3>
             <p className="text-muted small mb-3">当月を月曜日〜日曜日で区切った週を選択できます。</p>
+            <div className="d-flex justify-content-between align-items-center gap-2 mb-3">
+              <Button variant="outline-secondary" size="sm" onClick={() => handleMonthChange(-1)}>
+                前の月
+              </Button>
+              <h4 className="h6 mb-0">{calendarMonthLabel}</h4>
+              <Button variant="outline-secondary" size="sm" onClick={() => handleMonthChange(1)}>
+                次の月
+              </Button>
+            </div>
             <div className="d-flex flex-wrap gap-2">
               {weeklyRanges.map((range, index) => (
                 <Button key={`${format(range.start, 'yyyy-MM-dd')}-${index}`} variant="outline-primary">
