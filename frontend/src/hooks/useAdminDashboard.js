@@ -4,14 +4,16 @@ import {
   formatWorkDate,
   listenToTodayStatuses,
   listenToMonthlyAttendanceForAllUsers,
+  listenToAllMonthlySummaries,
 } from '../services/attendanceService.js'
 import { listenToAllUsers } from '../services/userService.js'
-import { formatTime, formatYearMonth } from '../utils/time.js'
+import { calculateActualWorkMinutes, formatTime, formatYearMonth } from '../utils/time.js'
 
 const useAdminDashboard = (targetDate = new Date()) => {
   const [employees, setEmployees] = useState([])
   const [attendance, setAttendance] = useState([])
   const [monthlyAttendance, setMonthlyAttendance] = useState([])
+  const [monthlySummaries, setMonthlySummaries] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -34,6 +36,14 @@ const useAdminDashboard = (targetDate = new Date()) => {
     const yearMonth = formatYearMonth(targetDate)
     const stopSummaries = listenToMonthlyAttendanceForAllUsers(yearMonth, (rows) => {
       setMonthlyAttendance(rows)
+    })
+    return () => stopSummaries?.()
+  }, [targetDate])
+
+  useEffect(() => {
+    const yearMonth = formatYearMonth(targetDate)
+    const stopSummaries = listenToAllMonthlySummaries(yearMonth, (rows) => {
+      setMonthlySummaries(rows)
     })
     return () => stopSummaries?.()
   }, [targetDate])
@@ -94,23 +104,40 @@ const useAdminDashboard = (targetDate = new Date()) => {
   }
 
   const monthlySummaryRows = useMemo(() => {
+    const summaryMap = new Map(monthlySummaries.map((row) => [row.userId, row]))
     const totalMap = new Map()
+    const countMap = new Map()
     monthlyAttendance.forEach((record) => {
       if (!record?.userId) return
       const current = totalMap.get(record.userId) ?? 0
-      totalMap.set(record.userId, current + (record.totalMinutes ?? 0))
+      let totalMinutes = record.totalMinutes
+      if (!Number.isFinite(totalMinutes) && record.clockIn && record.clockOut) {
+        totalMinutes = calculateActualWorkMinutes(
+          record.clockIn,
+          record.clockOut,
+          record.breakMinutes,
+          record.breakPeriods,
+        )
+      }
+      const safeMinutes = Number.isFinite(totalMinutes) ? totalMinutes : 0
+      totalMap.set(record.userId, current + safeMinutes)
+      countMap.set(record.userId, (countMap.get(record.userId) ?? 0) + 1)
     })
     return employees
       .map((employee) => {
+        const summary = summaryMap.get(employee.id)
+        const attendanceCount = countMap.get(employee.id) ?? 0
+        const attendanceTotal = totalMap.get(employee.id) ?? 0
+        const fallbackTotal = summary?.totalMinutes ?? 0
         return {
           userId: employee.id,
           name: employee.name,
           department: employee.department,
-          totalMinutes: totalMap.get(employee.id) ?? 0,
+          totalMinutes: attendanceCount > 0 ? attendanceTotal : fallbackTotal,
         }
       })
       .sort((a, b) => a.department.localeCompare(b.department, 'ja') || a.name.localeCompare(b.name, 'ja'))
-  }, [employees, monthlyAttendance])
+  }, [employees, monthlyAttendance, monthlySummaries])
 
   return {
     stats,

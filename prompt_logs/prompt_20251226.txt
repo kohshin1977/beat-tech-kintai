@@ -403,3 +403,51 @@ ToDo
 [User] 全ユーザーの勤務時間が見れるようになりましたが自分以外の勤務時間が0:00になってしまいます
 
 [Assistant] 月次サマリーに依存せず、当月のattendanceをcollectionGroupで取得して合計する方式に変更しました。これにより他ユーザーの合計が0になる問題を回避します。対象は frontend/src/services/attendanceService.js と frontend/src/hooks/useAdminDashboard.js です。
+
+[User] やはり自分以外の勤務時間が0:00になってしまいます。
+
+[Assistant] 月次集計にtotalMinutesが入っていないケースでも、clockIn/clockOutと休憩から再計算して合計するように変更しました。対象は frontend/src/hooks/useAdminDashboard.js です。
+
+[User] まだ0:00のままです。clockIn/Clockoutは入っています。
+
+[Assistant] 月次勤怠の合計はattendance集計が無い場合にmonthlySummaryをフォールバックするように修正しました。対象は frontend/src/hooks/useAdminDashboard.js です。
+
+[User] まだ0:00のままです。clockIn/Clockoutは入っています。
+
+[Assistant] Firestoreの権限エラー対策として、adminは全ドキュメントread許可のルールを追加し、ユーザー自身のドキュメントは個別許可に切り替えました。firestore.rules を再デプロイしてください。
+
+[User] （コンソールログ: failed-precondition と permission-denied）
+
+[Assistant] failed-preconditionはcollectionGroupのインデックス不足です。monthlySummary.yearMonth と attendance.workDate のCOLLECTION_GROUP_ASCインデックスを作成してください。permission-deniedが残る場合はfirestore.rulesの再デプロイと、adminユーザーのrole=adminがusers/{uid}に存在することを確認してください。
+
+[User] インデックスを作成するにはどうしたらいいですか
+
+[Assistant] Firebase Consoleでの作成方法と、firestore.indexes.jsonからのデプロイ方法を案内しました。
+
+[User] 方法Bでお願いします
+
+[Assistant] firestore.indexes.jsonにattendance(workDate)とmonthlySummary(yearMonth)のcollection groupインデックスを追加しました。firebase deploy --only firestore:indexes を実行してください。
+
+[User] index-BD9Ev7jJ.js:288 ... FirebaseError: [code=failed-precondition]: The query requires a COLLECTION_GROUP_ASC index for collection monthlySummary and field yearMonth.
+
+[Assistant] monthlySummary.yearMonth のcollection groupインデックスが未作成です。firestore.indexes.jsonのデプロイ後、インデックス作成完了まで待機して再読み込みしてください。
+
+[User] （Firestoreインデックス画面のスクショ）
+
+[Assistant] monthlySummaryのインデックスが未作成です。firebase deploy --only firestore:indexes を実行し、monthlySummary/yearMonthのインデックスが有効になるまで待機してください。
+
+[User] firebase deploy --only firestore:indexes 実行結果: attendanceのインデックスが不要で400エラー
+
+[Assistant] firestore.indexes.jsonからattendance(workDate)単独のCOLLECTION_GROUPインデックスを削除しました。monthlySummary/yearMonthのみをデプロイしてください。
+
+[User] firebase deploy --only firestore:indexes 実行結果: monthlySummaryのインデックスが不要で400エラー
+
+[Assistant] 単一フィールドのcollection groupインデックスはfieldOverridesで設定する必要があるため、attendance.workDate と monthlySummary.yearMonth を fieldOverrides に追加しました。再度 firebase deploy --only firestore:indexes を実行してください。
+
+[User] indexは追加されていますか
+
+[Assistant] 画像では単一フィールドの除外設定にattendance.workDateとmonthlySummary.yearMonthが表示され、コレクショングループの昇順が有効になっているため追加済みと判断できます。反映には数分かかるので待機後に再読み込みし、failed-preconditionが消えているか確認してください。
+
+[User] failed-precondition: COLLECTION_ASC index for collection attendance and field workDate
+
+[Assistant] attendance.workDate の単一フィールドにコレクションスコープ(COLLECTION_ASC)を追加しました。firebase deploy --only firestore:indexes を実行してください。
